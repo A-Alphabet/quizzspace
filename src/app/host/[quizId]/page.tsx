@@ -203,13 +203,9 @@ export default function HostDashboard() {
         throw new Error(errData.error || 'Failed to start game');
       }
 
-      // Fetch updated full session with quiz + players
-      const fullSessionRes = await fetch(`/api/session/${session.joinCode}`);
-      if (!fullSessionRes.ok) throw new Error('Failed to load session after starting');
-      const fullSession = await fullSessionRes.json();
-
-      setSessionData(fullSession);
-      setSession(fullSession); // Update GameContext
+      const updatedSession = await response.json();
+      setSessionData(updatedSession);
+      setSession(updatedSession); // Update GameContext
       setGamePhase('question');
       router.push(`/game/${session.joinCode}`);
     } catch (err) {

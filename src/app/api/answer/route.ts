@@ -62,16 +62,26 @@ export async function POST(req: NextRequest) {
     }
 
     // Get the question and selected choice
-    const [question, selectedChoice] = await Promise.all([
+    const [question, selectedChoice, correctChoice] = await Promise.all([
       prisma.question.findUnique({
         where: { id: validatedData.questionId },
       }),
       prisma.choice.findUnique({
         where: { id: validatedData.selectedChoiceId },
       }),
+      prisma.choice.findFirst({
+        where: {
+          questionId: validatedData.questionId,
+          isCorrect: true,
+        },
+        select: {
+          id: true,
+          text: true,
+        },
+      }),
     ]);
 
-    if (!question || !selectedChoice) {
+    if (!question || !selectedChoice || !correctChoice) {
       return successResponse({ error: 'Invalid question or choice' }, 400);
     }
 
@@ -135,6 +145,13 @@ export async function POST(req: NextRequest) {
     return successResponse(
       {
         answer,
+        answerResult: {
+          selectedChoiceId: validatedData.selectedChoiceId,
+          correctChoiceId: correctChoice.id,
+          correctChoiceText: correctChoice.text,
+          isCorrect,
+          pointsAwarded,
+        },
         playerScore: updatedPlayers.find((p) => p.id === validatedData.playerId)
           ?.score,
       },

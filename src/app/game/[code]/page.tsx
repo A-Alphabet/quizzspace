@@ -36,6 +36,14 @@ interface Player {
   score: number;
 }
 
+interface AnswerFeedback {
+  selectedChoiceId: string;
+  correctChoiceId: string;
+  correctChoiceText: string;
+  isCorrect: boolean;
+  pointsAwarded: number;
+}
+
 export default function GamePage() {
   const params = useParams();
   const router = useRouter();
@@ -53,6 +61,7 @@ export default function GamePage() {
   const [removed, setRemoved] = useState(false);
   const [hostCorrectChoiceId, setHostCorrectChoiceId] = useState<string | null>(null);
   const [hostCorrectChoiceText, setHostCorrectChoiceText] = useState<string | null>(null);
+  const [answerFeedback, setAnswerFeedback] = useState<AnswerFeedback | null>(null);
   const currentQuestionIndex = session?.currentQuestionIndex;
 
   const handleSubmitAnswer = useCallback(async () => {
@@ -86,6 +95,11 @@ export default function GamePage() {
           return;
         }
         throw new Error(errData.error || 'Failed to submit answer');
+      }
+
+      const data = (await response.json()) as { answerResult?: AnswerFeedback };
+      if (data.answerResult) {
+        setAnswerFeedback(data.answerResult);
       }
 
       setHasSubmittedAnswer(true);
@@ -178,6 +192,7 @@ export default function GamePage() {
     setTimeLeft(0);
     setHostCorrectChoiceId(null);
     setHostCorrectChoiceText(null);
+    setAnswerFeedback(null);
   }, [currentQuestionIndex, setHasSubmittedAnswer]);
 
   // Fetch correct answer for host display
@@ -599,7 +614,13 @@ export default function GamePage() {
                 disabled={isAnswerLocked}
                 onClick={() => !isAnswerLocked && setSelectedChoiceId(choice.id)}
                 className={`w-full p-4 rounded-lg font-medium transition-all duration-200 text-left transform opacity-0 animate-[slideUp_0.3s_ease-out_forwards] ${
-                  selectedChoiceId === choice.id
+                  hasSubmittedAnswer && answerFeedback
+                    ? choice.id === answerFeedback.correctChoiceId
+                      ? 'bg-green-100 dark:bg-green-900/30 text-green-900 dark:text-green-100 ring-2 ring-green-400 ring-offset-2 shadow-lg'
+                      : choice.id === answerFeedback.selectedChoiceId
+                      ? 'bg-red-100 dark:bg-red-900/30 text-red-900 dark:text-red-100 ring-2 ring-red-400 ring-offset-2 shadow-lg'
+                      : 'bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-300'
+                    : selectedChoiceId === choice.id
                     ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white ring-2 ring-blue-400 ring-offset-2 scale-102 shadow-lg'
                     : isAnswerLocked
                     ? 'bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-400'
@@ -609,19 +630,35 @@ export default function GamePage() {
                 aria-pressed={selectedChoiceId === choice.id}
                 style={{ animationDelay: `${idx * 50}ms` }}
               >
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4 justify-between">
+                  <div className="flex items-center gap-4 flex-1">
                   <div
                     className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all duration-200 ${
-                      selectedChoiceId === choice.id
+                      (hasSubmittedAnswer && answerFeedback
+                        ? choice.id === answerFeedback.correctChoiceId
+                        : selectedChoiceId === choice.id)
                         ? 'border-white bg-white'
                         : 'border-slate-400 dark:border-slate-500'
                     }`}
                   >
-                    {selectedChoiceId === choice.id && (
+                    {(hasSubmittedAnswer && answerFeedback
+                      ? choice.id === answerFeedback.correctChoiceId
+                      : selectedChoiceId === choice.id) && (
                       <div className="w-4 h-4 bg-blue-600 rounded-full animate-scale-in"></div>
                     )}
                   </div>
                   <span className="flex-1">{choice.text}</span>
+                  </div>
+                  {hasSubmittedAnswer && answerFeedback && choice.id === answerFeedback.correctChoiceId && (
+                    <span className="text-xs font-bold px-2 py-1 rounded bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200">
+                      Correct
+                    </span>
+                  )}
+                  {hasSubmittedAnswer && answerFeedback && !answerFeedback.isCorrect && choice.id === answerFeedback.selectedChoiceId && (
+                    <span className="text-xs font-bold px-2 py-1 rounded bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200">
+                      Wrong
+                    </span>
+                  )}
                 </div>
               </button>
             ))}
@@ -642,11 +679,19 @@ export default function GamePage() {
           ) : (
             <div className="mt-8 p-4 bg-gradient-to-r from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-600 rounded-lg text-center border-2 border-slate-400 dark:border-slate-500 animate-slide-up">
               <p className="font-bold text-slate-900 dark:text-white text-lg">
-                {hasSubmittedAnswer ? '✅ Answer Submitted!' : '⏱️ Time\'s Up!'}
+                {hasSubmittedAnswer
+                  ? answerFeedback?.isCorrect
+                    ? `✅ Correct! +${answerFeedback.pointsAwarded} points`
+                    : '❌ Wrong answer'
+                  : '⏱️ Time\'s Up!'}
               </p>
-              <p className="text-sm text-slate-700 dark:text-slate-300 mt-2">
-                Waiting for next question...
-              </p>
+              {hasSubmittedAnswer && answerFeedback ? (
+                <p className="text-sm text-slate-700 dark:text-slate-300 mt-2">
+                  Correct option: <span className="font-semibold">{answerFeedback.correctChoiceText}</span>
+                </p>
+              ) : (
+                <p className="text-sm text-slate-700 dark:text-slate-300 mt-2">Waiting for next question...</p>
+              )}
             </div>
           )}
         </Card>
