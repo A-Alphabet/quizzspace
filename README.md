@@ -61,7 +61,7 @@ A production-ready real-time quiz platform inspired by Kahoot and Quizizz, built
    ```
    
    Fill in your configuration:
-   - `DATABASE_URL` - PostgreSQL connection string
+   - `POSTGRES_PRISMA_URL` - PostgreSQL connection string
    - `PUSHER_APP_ID`, `NEXT_PUBLIC_PUSHER_KEY`, `PUSHER_SECRET`, `NEXT_PUBLIC_PUSHER_CLUSTER`
    - `TOTP_SECRET` - Base32 secret for TOTP verification
    - `NEXT_PUBLIC_API_URL` - Your app URL (localhost:3000 for development)
@@ -200,7 +200,7 @@ git push origin main
 In Vercel Project Settings → Environment Variables, add:
 
 ```
-DATABASE_URL=postgresql://...
+POSTGRES_PRISMA_URL=postgresql://...
 PUSHER_APP_ID=...
 NEXT_PUBLIC_PUSHER_KEY=...
 PUSHER_SECRET=...

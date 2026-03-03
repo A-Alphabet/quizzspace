@@ -2,7 +2,8 @@ import { z } from 'zod';
 
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-  DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
+  DATABASE_URL: z.string().min(1).optional(),
+  POSTGRES_PRISMA_URL: z.string().min(1).optional(),
   PUSHER_APP_ID: z.string().optional(),
   NEXT_PUBLIC_PUSHER_KEY: z.string().optional(),
   PUSHER_SECRET: z.string().optional(),
