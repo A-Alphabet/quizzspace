@@ -32,7 +32,7 @@ export function TOTPModal({ onSuccess }: TOTPModalProps) {
         setPassword('');
       }
     } catch (err) {
-      setError('Error verifying token. Please try again.');
+      setError('Error verifying password. Please try again.');
       console.error(err);
     } finally {
       setIsVerifying(false);

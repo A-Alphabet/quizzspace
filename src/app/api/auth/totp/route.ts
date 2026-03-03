@@ -6,7 +6,7 @@ import { checkRateLimit, getRequestIdentifier } from '@/lib/rate-limit';
 export async function POST(req: NextRequest) {
   try {
     const ip = getRequestIdentifier(req);
-    const rate = checkRateLimit(`totp:${ip}`, 10, 60_000);
+    const rate = checkRateLimit(`admin-auth:${ip}`, 10, 60_000);
     if (!rate.allowed) {
       return successResponse({ error: 'Too many requests. Please try again later.' }, 429);
     }

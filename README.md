@@ -63,7 +63,7 @@ A production-ready real-time quiz platform inspired by Kahoot and Quizizz, built
    Fill in your configuration:
    - `POSTGRES_PRISMA_URL` - PostgreSQL connection string
    - `PUSHER_APP_ID`, `NEXT_PUBLIC_PUSHER_KEY`, `PUSHER_SECRET`, `NEXT_PUBLIC_PUSHER_CLUSTER`
-   - `TOTP_SECRET` - Base32 secret for TOTP verification
+   - `MASTER_PASSWORD` - Admin password for quiz creation auth
    - `NEXT_PUBLIC_API_URL` - Your app URL (localhost:3000 for development)
 
 4. **Setup database**
@@ -205,7 +205,7 @@ PUSHER_APP_ID=...
 NEXT_PUBLIC_PUSHER_KEY=...
 PUSHER_SECRET=...
 NEXT_PUBLIC_PUSHER_CLUSTER=mt1
-TOTP_SECRET=...
+MASTER_PASSWORD=...
 NEXT_PUBLIC_API_URL=https://your-domain.vercel.app
 ```
 

@@ -21,7 +21,7 @@ export async function GET() {
       checks: {
         database: 'ok',
         pusher: pusherConfigured ? 'configured' : 'polling-fallback',
-        totp: env.TOTP_SECRET ? 'configured' : 'not-configured',
+        adminAuth: env.MASTER_PASSWORD ? 'configured' : 'not-configured',
       },
     });
   } catch (error) {

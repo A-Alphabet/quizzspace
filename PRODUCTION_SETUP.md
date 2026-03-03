@@ -22,14 +22,14 @@ Choose either **Supabase** or **Neon** for free PostgreSQL hosting.
 ### Create `.env.local` in project root
 ```bash
 # Database (from Step 1)
-DATABASE_URL="postgresql://user:password@host:port/database"
+POSTGRES_PRISMA_URL="postgresql://user:password@host:port/database"
 
 # Pusher credentials (get from https://pusher.com)
 PUSHER_APP_ID="your_app_id"
 NEXT_PUBLIC_PUSHER_KEY="your_public_key"
 PUSHER_SECRET="your_secret_key"
 NEXT_PUBLIC_PUSHER_CLUSTER="mt1"  # or your region: us2, eu, ap1, etc
-TOTP_SECRET="replace_with_strong_base32_secret"
+MASTER_PASSWORD="replace_with_strong_admin_password"
 
 # Optional: API URL (for Vercel production)
 NEXT_PUBLIC_API_URL="https://your-domain.vercel.app"
@@ -98,11 +98,12 @@ Open: http://localhost:3000
    - Add all variables from `.env.local`:
      ```
      DATABASE_URL
+       POSTGRES_PRISMA_URL
      PUSHER_APP_ID
      PUSHER_SECRET
      NEXT_PUBLIC_PUSHER_KEY
      NEXT_PUBLIC_PUSHER_CLUSTER
-   TOTP_SECRET
+       MASTER_PASSWORD
      NEXT_PUBLIC_API_URL (optional)
      ```
 
@@ -118,12 +119,14 @@ Open: http://localhost:3000
 ### Database Connection Error
 **Error:** `Error connecting to PostgreSQL`
 - Check `DATABASE_URL` format is correct
+- Check `POSTGRES_PRISMA_URL` format is correct
 - Verify credentials and host are accessible
 - Test connection: `npx prisma db execute --stdin < test.sql`
 
 ### Prisma Migration Error
 **Error:** `P1001 Can't reach database`
 - Ensure DATABASE_URL is set in `.env.local`
+- Ensure POSTGRES_PRISMA_URL is set in `.env.local`
 - Verify PostgreSQL server is running
 - Check connection string format
 
