@@ -57,6 +57,9 @@ export function JoinPageContent() {
 
       const { player } = await joinRes.json();
       setCurrentPlayer(player);
+      
+      // Store player ID for removal detection
+      sessionStorage.setItem('currentPlayerId', player.id);
 
       // Redirect to lobby
       router.push(`/lobby/${code}`);

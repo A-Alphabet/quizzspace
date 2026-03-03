@@ -9,17 +9,18 @@ export function PusherProvider({ children }: { children: React.ReactNode }) {
   const { session, setSession, setGamePhase, isHost } = useGame();
 
   useEffect(() => {
-    // Initialize Pusher
-    if (!pusherRef.current && typeof window !== 'undefined') {
+    // Only initialize Pusher if key is available
+    if (!pusherRef.current && typeof window !== 'undefined' && process.env.NEXT_PUBLIC_PUSHER_KEY) {
       try {
         pusherRef.current = new PusherJs(
-          process.env.NEXT_PUBLIC_PUSHER_KEY || '',
+          process.env.NEXT_PUBLIC_PUSHER_KEY,
           {
             cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER || 'mt1',
           }
         );
       } catch (err) {
         console.error('Failed to initialize Pusher:', err);
+        pusherRef.current = null;
       }
     }
 
@@ -60,6 +61,16 @@ export function PusherProvider({ children }: { children: React.ReactNode }) {
         fetchUpdatedSession();
       });
 
+      channel.bind('player_removed', (data: any) => {
+        console.log('Player removed:', data);
+        fetchUpdatedSession();
+        // If current player was removed, redirect to home
+        if (data.playerId === sessionStorage.getItem('currentPlayerId')) {
+          alert('You have been removed from the session by the host.');
+          window.location.href = '/';
+        }
+      });
+
       channel.bind('question_start', (data: any) => {
         console.log('Question started:', data);
         fetchUpdatedSession();
@@ -89,6 +100,7 @@ export function PusherProvider({ children }: { children: React.ReactNode }) {
       };
     } catch (err) {
       console.error('Failed to subscribe to Pusher channel:', err);
+      // Continue without Pusher - polling will handle updates
     }
   }, [session, setSession, setGamePhase, isHost]);
 

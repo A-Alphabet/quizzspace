@@ -52,6 +52,25 @@ export default function HostDashboard() {
   const [isStarting, setIsStarting] = useState(false);
   const [sessionCreated, setSessionCreated] = useState(false);
 
+  // Poll for session updates
+  useEffect(() => {
+    if (!session) return;
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const response = await fetch(`/api/session/${session.joinCode}`);
+        if (response.ok) {
+          const updatedSession = await response.json();
+          setSessionData(updatedSession);
+        }
+      } catch (err) {
+        console.error('Failed to poll session:', err);
+      }
+    }, 2000); // Poll every 2 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [session?.joinCode]);
+
   // Fetch quiz data
   useEffect(() => {
     const fetchQuiz = async () => {
@@ -93,6 +112,29 @@ export default function HostDashboard() {
       console.error(err);
     } finally {
       setIsStarting(false);
+    }
+  };
+
+  const handleRemovePlayer = async (playerId: string) => {
+    if (!session) return;
+
+    try {
+      const response = await fetch('/api/player', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          playerId,
+          sessionId: session.id,
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to remove player');
+
+      const data = await response.json();
+      setSessionData(data.session);
+    } catch (err) {
+      setError('Failed to remove player. Please try again.');
+      console.error(err);
     }
   };
 
@@ -216,6 +258,37 @@ export default function HostDashboard() {
                   Players joined: <span className="font-bold">{session?.players?.length ?? 0}</span>
                 </p>
               </div>
+
+              {session?.players && session.players.length > 0 && (
+                <div className="mb-6 p-4 rounded-lg border-2 border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800">
+                  <h3 className="font-semibold mb-3 text-slate-900 dark:text-white flex items-center gap-2">
+                    👥 Players in Session ({session.players.length})
+                  </h3>
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {session.players.map((player) => (
+                      <div
+                        key={player.id}
+                        className="flex items-center justify-between p-3 rounded bg-white dark:bg-slate-700 hover:shadow-md transition-shadow"
+                      >
+                        <div className="flex-1">
+                          <p className="font-medium text-slate-900 dark:text-white">
+                            {player.name}
+                          </p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">
+                            Score: {player.score}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => handleRemovePlayer(player.id)}
+                          className="ml-2 px-3 py-1 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-slate-600 rounded transition-colors"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {session && session.status === 'waiting' && (
                 <Button

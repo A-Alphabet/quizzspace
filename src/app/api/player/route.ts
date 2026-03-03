@@ -78,3 +78,58 @@ export async function POST(req: NextRequest) {
     return handleErrorResponse(error);
   }
 }
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { playerId, sessionId } = body;
+
+    if (!playerId || !sessionId) {
+      return successResponse({ error: 'playerId and sessionId are required' }, 400);
+    }
+
+    // Find the player and session
+    const player = await prisma.player.findUnique({
+      where: { id: playerId },
+      include: {
+        session: {
+          select: {
+            id: true,
+            joinCode: true,
+          },
+        },
+      },
+    });
+
+    if (!player || player.sessionId !== sessionId) {
+      return successResponse({ error: 'Player not found' }, 404);
+    }
+
+    // Delete the player
+    await prisma.player.delete({
+      where: { id: playerId },
+    });
+
+    // Broadcast player removed event
+    await broadcastToSession(player.session.joinCode, eventNames.PLAYER_REMOVED, {
+      playerId: playerId,
+      playerName: player.name,
+    });
+
+    // Fetch updated session
+    const updatedSession = await prisma.session.findUnique({
+      where: { id: sessionId },
+      include: { players: true },
+    });
+
+    return successResponse(
+      {
+        message: 'Player removed successfully',
+        session: updatedSession,
+      },
+      200
+    );
+  } catch (error) {
+    return handleErrorResponse(error);
+  }
+}
