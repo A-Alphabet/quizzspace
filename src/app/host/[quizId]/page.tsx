@@ -213,7 +213,7 @@ export default function HostDashboard() {
                   {session?.joinCode}
                 </div>
                 <p className="text-xs text-slate-600 dark:text-slate-400">
-                  Players joined: <span className="font-bold">{session?.players.length || 0}</span>
+                  Players joined: <span className="font-bold">{session?.players?.length ?? 0}</span>
                 </p>
               </div>
 

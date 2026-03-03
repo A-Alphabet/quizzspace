@@ -42,16 +42,16 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-900 dark:to-slate-800 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-900 dark:to-slate-800 flex items-center justify-center p-4 overflow-hidden">
       <a href="#main" className="skip-to-main">Skip to main content</a>
       
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-md animate-fade-in">
         {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-2">
+        <div className="text-center mb-8 animate-slide-up">
+          <h1 className="text-5xl font-bold text-slate-900 dark:text-white mb-2 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
             LiveQuiz
           </h1>
-          <p className="text-lg text-slate-600 dark:text-slate-300">
+          <p className="text-lg text-slate-600 dark:text-slate-300 font-medium">
             Real-time quiz platform for engaging learning
           </p>
         </div>
@@ -70,7 +70,7 @@ export default function Home() {
 
             {/* Join Session Tab */}
             {activeTab === 'join' && (
-              <form onSubmit={handleJoinSession} className="space-y-4">
+              <form onSubmit={handleJoinSession} className="space-y-4 animate-fade-in">
                 <Input
                   label="Join Code (6 digits)"
                   placeholder="e.g., ABC123"
@@ -93,8 +93,8 @@ export default function Home() {
                 />
 
                 {error && (
-                  <div className="text-sm text-red-600 dark:text-red-400">
-                    {error}
+                  <div className="text-sm text-red-600 dark:text-red-400 animate-slide-up font-medium">
+                    ⚠️ {error}
                   </div>
                 )}
 
@@ -112,7 +112,7 @@ export default function Home() {
 
             {/* Create Quiz Tab */}
             {activeTab === 'create' && (
-              <div className="space-y-4">
+              <div className="space-y-4 animate-fade-in">
                 <p className="text-slate-600 dark:text-slate-400 text-sm">
                   Create a new quiz and become the host of a live session.
                 </p>
@@ -126,34 +126,34 @@ export default function Home() {
           </div>
 
           {/* Footer Links */}
-          <div className="mt-8 pt-6 border-t border-gray-200 dark:border-slate-700 text-center text-sm text-slate-600 dark:text-slate-400">
+          <div className="mt-8 pt-6 border-t border-gray-200 dark:border-slate-700 text-center text-sm text-slate-600 dark:text-slate-400 animate-slide-up">
             <p>
-              Made with care for educators and students
+              ✨ Made with care for educators and students
             </p>
           </div>
         </Card>
 
         {/* Features Section */}
-        <div className="mt-8 grid grid-cols-2 gap-4 text-sm">
-          <div className="text-center">
-            <div className="text-2xl mb-2">⚡</div>
+        <div className="mt-8 grid grid-cols-2 gap-4 text-sm animate-slide-up">
+          <div className="text-center opacity-0 animate-[slideUp_0.3s_ease-out_0.1s_forwards] hover:scale-105 transition-all duration-300 cursor-pointer">
+            <div className="text-3xl mb-2">⚡</div>
             <p className="font-semibold text-slate-900 dark:text-white">Real-time</p>
-            <p className="text-slate-600 dark:text-slate-400">Instant feedback</p>
+            <p className="text-slate-600 dark:text-slate-400 text-xs">Instant feedback</p>
           </div>
-          <div className="text-center">
-            <div className="text-2xl mb-2">📊</div>
+          <div className="text-center opacity-0 animate-[slideUp_0.3s_ease-out_0.2s_forwards] hover:scale-105 transition-all duration-300 cursor-pointer">
+            <div className="text-3xl mb-2">📊</div>
             <p className="font-semibold text-slate-900 dark:text-white">Scoreboard</p>
-            <p className="text-slate-600 dark:text-slate-400">Live leaderboard</p>
+            <p className="text-slate-600 dark:text-slate-400 text-xs">Live leaderboard</p>
           </div>
-          <div className="text-center">
-            <div className="text-2xl mb-2">🎯</div>
+          <div className="text-center opacity-0 animate-[slideUp_0.3s_ease-out_0.3s_forwards] hover:scale-105 transition-all duration-300 cursor-pointer">
+            <div className="text-3xl mb-2">🎯</div>
             <p className="font-semibold text-slate-900 dark:text-white">Engaging</p>
-            <p className="text-slate-600 dark:text-slate-400">Interactive learning</p>
+            <p className="text-slate-600 dark:text-slate-400 text-xs">Interactive learning</p>
           </div>
-          <div className="text-center">
-            <div className="text-2xl mb-2">📱</div>
+          <div className="text-center opacity-0 animate-[slideUp_0.3s_ease-out_0.4s_forwards] hover:scale-105 transition-all duration-300 cursor-pointer">
+            <div className="text-3xl mb-2">📱</div>
             <p className="font-semibold text-slate-900 dark:text-white">Mobile Ready</p>
-            <p className="text-slate-600 dark:text-slate-400">Works anywhere</p>
+            <p className="text-slate-600 dark:text-slate-400 text-xs">Works anywhere</p>
           </div>
         </div>
       </div>

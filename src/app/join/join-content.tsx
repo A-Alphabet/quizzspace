@@ -70,13 +70,16 @@ export function JoinPageContent() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-900 dark:to-slate-800">
+      <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-900 dark:to-slate-800 animate-fade-in">
         <div className="text-center">
-          <p className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
+          <div className="inline-block mb-6">
+            <div className="w-16 h-16 border-4 border-blue-300 border-t-blue-600 rounded-full animate-spin-slow"></div>
+          </div>
+          <p className="text-lg font-semibold text-slate-900 dark:text-white mb-2 animate-slide-up">
             Joining session...
           </p>
-          <p className="text-sm text-slate-600 dark:text-slate-400">
-            {code} as {playerName}
+          <p className="text-sm text-slate-600 dark:text-slate-400 animate-slide-up">
+            {code} as <span className="font-medium">{playerName}</span>
           </p>
         </div>
       </div>
@@ -85,17 +88,17 @@ export function JoinPageContent() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-900 dark:to-slate-800">
-        <Card className="max-w-md shadow-xl">
+      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-900 dark:to-slate-800 animate-fade-in">
+        <Card className="max-w-md shadow-xl animate-scale-in">
           <Alert variant="error" className="mb-4">
-            {error}
+            <span className="text-lg">❌</span> {error}
           </Alert>
           <Button
             variant="primary"
             className="w-full"
             onClick={() => router.push('/')}
           >
-            Return Home
+            Return to Home
           </Button>
         </Card>
       </div>

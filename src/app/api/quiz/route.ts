@@ -4,6 +4,24 @@ import { handleErrorResponse, successResponse } from '@/lib/api-errors';
 import { prisma } from '@/lib/prisma';
 import { validateQuestionChoices } from '@/lib/game-logic';
 
+export async function GET(req: NextRequest) {
+  try {
+    const quizzes = await prisma.quiz.findMany({
+      include: {
+        questions: {
+          orderBy: { orderIndex: 'asc' },
+          include: { choices: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return successResponse(quizzes);
+  } catch (error) {
+    return handleErrorResponse(error);
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();

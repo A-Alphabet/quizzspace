@@ -6,7 +6,7 @@ import { useGame } from './GameContext';
 
 export function PusherProvider({ children }: { children: React.ReactNode }) {
   const pusherRef = useRef<PusherJs | null>(null);
-  const { session } = useGame();
+  const { session, setSession, setGamePhase, isHost } = useGame();
 
   useEffect(() => {
     // Initialize Pusher
@@ -41,21 +41,47 @@ export function PusherProvider({ children }: { children: React.ReactNode }) {
     try {
       const channel = pusherRef.current.subscribe(`session-${session.joinCode}`);
 
+      // Fetch updated session data from API
+      const fetchUpdatedSession = async () => {
+        try {
+          const response = await fetch(`/api/session/${session.joinCode}`);
+          if (response.ok) {
+            const updatedSession = await response.json();
+            setSession(updatedSession);
+          }
+        } catch (err) {
+          console.error('Failed to fetch updated session:', err);
+        }
+      };
+
       // Real-time event listeners
       channel.bind('player_joined', (data: any) => {
         console.log('Player joined:', data);
+        fetchUpdatedSession();
       });
 
       channel.bind('question_start', (data: any) => {
         console.log('Question started:', data);
+        fetchUpdatedSession();
+        if (isHost) {
+          setGamePhase('question');
+        }
       });
 
       channel.bind('leaderboard_update', (data: any) => {
         console.log('Leaderboard updated:', data);
+        fetchUpdatedSession();
+        if (isHost) {
+          setGamePhase('leaderboard');
+        }
       });
 
       channel.bind('game_over', (data: any) => {
         console.log('Game over:', data);
+        fetchUpdatedSession();
+        if (isHost) {
+          setGamePhase('finished');
+        }
       });
 
       return () => {
@@ -64,7 +90,7 @@ export function PusherProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       console.error('Failed to subscribe to Pusher channel:', err);
     }
-  }, [session]);
+  }, [session, setSession, setGamePhase, isHost]);
 
   // In a production app, you'd pass pusherRef.current through context
   // For MVP, we're relying on polling for now

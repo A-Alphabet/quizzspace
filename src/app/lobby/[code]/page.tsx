@@ -72,14 +72,14 @@ export default function LobbyPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-green-50 to-emerald-100 dark:from-slate-900 dark:to-slate-800">
-        <Card className="w-full max-w-md shadow-xl text-center">
-          <h2 className="text-xl font-bold mb-4 text-slate-900 dark:text-white">
+      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-green-50 to-emerald-100 dark:from-slate-900 dark:to-slate-800 animate-fade-in">
+        <Card className="w-full max-w-md shadow-xl text-center animate-scale-in">
+          <h2 className="text-2xl font-bold mb-6 text-slate-900 dark:text-white animate-slide-up">
             Joining Quiz...
           </h2>
-          <div className="animate-pulse space-y-3">
-            <div className="h-8 bg-slate-200 dark:bg-slate-700 rounded"></div>
-            <div className="h-6 bg-slate-200 dark:bg-slate-700 rounded w-3/4 mx-auto"></div>
+          <div className="space-y-4">
+            <div className="h-8 bg-gradient-to-r from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-600 rounded animate-pulse"></div>
+            <div className="h-6 bg-gradient-to-r from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-600 rounded w-3/4 mx-auto animate-pulse"></div>
           </div>
         </Card>
       </div>
@@ -88,10 +88,10 @@ export default function LobbyPage() {
 
   if (!session) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-red-50 to-pink-100 dark:from-slate-900 dark:to-slate-800">
-        <Card className="w-full max-w-md shadow-xl">
+      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-red-50 to-pink-100 dark:from-slate-900 dark:to-slate-800 animate-fade-in">
+        <Card className="w-full max-w-md shadow-xl animate-scale-in">
           <Alert variant="error">
-            Session not found. Please check your join code and try again.
+            ❌ Session not found. Please check your join code and try again.
           </Alert>
         </Card>
       </div>
@@ -99,41 +99,42 @@ export default function LobbyPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 dark:from-slate-900 dark:to-slate-800 p-4 flex items-center justify-center">
-      <Card className="w-full max-w-md shadow-xl">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 dark:from-slate-900 dark:to-slate-800 p-4 flex items-center justify-center animate-fade-in">
+      <Card className="w-full max-w-md shadow-xl animate-scale-in">
+        <div className="text-center mb-8 animate-slide-down">
+          <h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-4 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
             {session.quiz.title}
           </h1>
-          <div className="inline-block bg-blue-100 dark:bg-blue-900 px-4 py-2 rounded-lg">
-            <p className="text-2xl font-bold text-blue-600 dark:text-blue-300 tracking-widest">
+          <div className="inline-block bg-blue-100 dark:bg-blue-900 px-4 py-2 rounded-lg border-2 border-blue-300 dark:border-blue-700 animate-pulse-glow">
+            <p className="text-3xl font-bold text-blue-600 dark:text-blue-300 tracking-widest font-mono">
               {code}
             </p>
           </div>
         </div>
 
-        <div className="mb-8">
+        <div className="mb-8 animate-slide-up">
           <h2 className="text-lg font-semibold mb-4 text-slate-900 dark:text-white">
-            Welcome, {currentPlayer?.name}!
+            👋 Welcome, <span className="text-purple-600 dark:text-purple-300">{currentPlayer?.name}</span>!
           </h2>
-          <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">
-            Waiting for the host to start the game...
+          <p className="text-sm text-slate-600 dark:text-slate-400 mb-6 font-medium">
+            ⏳ Waiting for the host to start the game...
           </p>
 
-          <div className="bg-slate-50 dark:bg-slate-700 p-4 rounded-lg mb-6">
-            <p className="text-sm font-medium text-slate-900 dark:text-white mb-2">
-              Players joined ({session.players.length}):
+          <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-700 dark:to-slate-600 p-4 rounded-lg mb-6 border border-slate-200 dark:border-slate-500 transition-all duration-300">
+            <p className="text-sm font-medium text-slate-900 dark:text-white mb-3">
+              👥 Players joined (<span className="font-bold text-purple-600 dark:text-purple-300">{session.players.length}</span>):
             </p>
-            <ul className="space-y-1">
-              {session.players.map((player) => (
+            <ul className="space-y-2">
+              {session.players.map((player, index) => (
                 <li
                   key={player.id}
-                  className="text-sm text-slate-700 dark:text-slate-300 flex items-center"
+                  className="text-sm text-slate-700 dark:text-slate-300 flex items-center p-2 rounded-md hover:bg-white dark:hover:bg-slate-700 transition-all duration-200 opacity-0 animate-[slideUp_0.3s_ease-out_forwards]"
+                  style={{ animationDelay: `${index * 50}ms` }}
                 >
-                  <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
-                  {player.name}
+                  <span className="w-2 h-2 bg-gradient-to-r from-green-400 to-green-500 rounded-full mr-3 animate-pulse"></span>
+                  <span className="font-medium">{player.name}</span>
                   {player.id === currentPlayer?.id && (
-                    <span className="ml-2 text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded">
+                    <span className="ml-auto text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-2.5 py-1 rounded-full font-semibold">
                       You
                     </span>
                   )}
@@ -143,17 +144,17 @@ export default function LobbyPage() {
           </div>
 
           {/* Live indicator */}
-          <div className="flex items-center justify-center gap-2">
+          <div className="flex items-center justify-center gap-2 animate-slide-up">
             <span className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></span>
-            <p className="text-sm font-medium text-red-600 dark:text-red-400">
-              Live Lobby
+            <p className="text-sm font-bold text-red-600 dark:text-red-400">
+              🔴 LIVE LOBBY
             </p>
           </div>
         </div>
 
-        <div className="bg-blue-50 dark:bg-slate-700 p-4 rounded-lg text-center">
-          <p className="text-sm text-slate-600 dark:text-slate-400">
-            Quiz has {session.quiz.questions.length} questions
+        <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-slate-700 dark:to-slate-600 p-4 rounded-lg text-center border border-blue-200 dark:border-slate-500 animate-slide-up">
+          <p className="text-sm text-slate-700 dark:text-slate-300 font-medium">
+            📝 Quiz has <span className="font-bold text-blue-600 dark:text-blue-300">{session.quiz.questions.length}</span> questions
           </p>
         </div>
       </Card>

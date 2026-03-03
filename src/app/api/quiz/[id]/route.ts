@@ -35,3 +35,20 @@ export async function GET(
     return handleErrorResponse(error);
   }
 }
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+
+    const quiz = await prisma.quiz.delete({
+      where: { id },
+    });
+
+    return successResponse({ message: 'Quiz deleted successfully' });
+  } catch (error) {
+    return handleErrorResponse(error);
+  }
+}

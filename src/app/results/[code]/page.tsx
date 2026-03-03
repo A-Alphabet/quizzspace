@@ -25,7 +25,7 @@ interface SessionData {
 export default function ResultsPage() {
   const params = useParams();
   const router = useRouter();
-  const { currentPlayer, reset } = useGame();
+  const { currentPlayer, isHost, reset } = useGame();
 
   const code = params.code as string;
 
@@ -33,7 +33,7 @@ export default function ResultsPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (!currentPlayer) {
+    if (!currentPlayer && !isHost) {
       router.push('/');
       return;
     }
@@ -54,59 +54,67 @@ export default function ResultsPage() {
     };
 
     fetchSession();
-  }, [code, currentPlayer, router]);
+  }, [code, currentPlayer, isHost, router]);
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <p className="text-lg">Loading results...</p>
+      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-green-50 to-emerald-100 dark:from-slate-900 dark:to-slate-800 animate-fade-in">
+        <div className="text-center">
+          <div className="inline-block mb-6">
+            <div className="w-16 h-16 border-4 border-green-300 border-t-green-600 rounded-full animate-spin-slow"></div>
+          </div>
+          <p className="text-lg font-semibold text-slate-900 dark:text-white animate-slide-up">
+            Loading results...
+          </p>
+        </div>
       </div>
     );
   }
 
   if (!session) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <Alert variant="error">Failed to load results</Alert>
+      <div className="min-h-screen flex items-center justify-center p-4 animate-fade-in">
+        <Alert variant="error">❌ Failed to load results</Alert>
       </div>
     );
   }
 
   const sortedPlayers = [...session.players].sort((a, b) => b.score - a.score);
-  const playerRank = sortedPlayers.findIndex((p) => p.id === currentPlayer?.id) + 1;
+  const playerRank = currentPlayer ? sortedPlayers.findIndex((p) => p.id === currentPlayer?.id) + 1 : 0;
   const playerScore = currentPlayer ? sortedPlayers.find((p) => p.id === currentPlayer.id)?.score || 0 : 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 dark:from-slate-900 dark:to-slate-800 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 dark:from-slate-900 dark:to-slate-800 p-4 animate-fade-in">
       <div className="max-w-2xl mx-auto">
-        <Card className="shadow-xl mb-6 text-center">
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">
-            Quiz Complete!
+        <Card className="shadow-xl mb-6 text-center animate-scale-in">
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent mb-3 animate-slide-up">
+            🎉 Quiz Complete!
           </h1>
-          <p className="text-lg text-slate-600 dark:text-slate-400 mb-6">
+          <p className="text-lg text-slate-600 dark:text-slate-400 mb-6 font-medium">
             {session.quiz.title}
+            {isHost && !currentPlayer && ' - Host View'}
           </p>
 
-          {currentPlayer && (
-            <div className="bg-blue-50 dark:bg-blue-900 p-6 rounded-lg mb-6">
-              <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">Your Rank</p>
-              <p className="text-5xl font-bold text-blue-600 dark:text-blue-300 mb-2">
+          {currentPlayer && !isHost && (
+            <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900 dark:to-blue-800 p-8 rounded-lg mb-6 border-2 border-blue-300 dark:border-blue-600 animate-scale-in hover:shadow-xl transition-all duration-300">
+              <p className="text-sm text-slate-600 dark:text-slate-400 mb-2 font-medium">👑 Your Rank</p>
+              <p className={`text-6xl font-bold mb-3 ${playerRank === 1 ? 'text-yellow-600' : playerRank === 2 ? 'text-gray-500' : playerRank === 3 ? 'text-orange-600' : 'text-blue-600'}`}>
                 #{playerRank}
               </p>
-              <p className="text-2xl font-semibold text-slate-900 dark:text-white">
-                {playerScore} points
+              <p className="text-3xl font-bold text-slate-900 dark:text-white">
+                {playerScore} <span className="text-lg">points</span>
               </p>
             </div>
           )}
         </Card>
 
         {/* Final Leaderboard */}
-        <Card className="shadow-xl mb-6">
-          <h2 className="text-xl font-bold mb-4 text-slate-900 dark:text-white">
-            Final Leaderboard
+        <Card className="shadow-xl animate-scale-in">
+          <h2 className="text-2xl font-bold mb-6 text-slate-900 dark:text-white text-center">
+            🏆 Final Leaderboard
           </h2>
 
-          <div className="space-y-2">
+          <div className="space-y-3">
             {sortedPlayers.map((player, idx) => {
               const medals = ['🥇', '🥈', '🥉'];
               const medal = idx < 3 ? medals[idx] : '  ';
@@ -115,24 +123,27 @@ export default function ResultsPage() {
               return (
                 <div
                   key={player.id}
-                  className={`flex justify-between items-center p-3 rounded-lg font-medium ${
-                    isCurrentPlayer
-                      ? 'bg-blue-100 dark:bg-blue-900 border-2 border-blue-500'
-                      : 'bg-slate-100 dark:bg-slate-700'
+                  className={`flex justify-between items-center p-4 rounded-lg font-medium transition-all duration-300 transform hover:scale-102 hover:shadow-md opacity-0 animate-[slideUp_0.4s_ease-out_forwards] ${
+                    isCurrentPlayer && !isHost
+                      ? 'bg-gradient-to-r from-blue-100 to-blue-200 dark:from-blue-900 dark:to-blue-800 border-2 border-blue-500 shadow-lg'
+                      : idx < 3
+                      ? 'bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-700 dark:to-slate-600 hover:bg-gradient-to-r hover:from-slate-100 hover:to-slate-200'
+                      : 'bg-slate-50 dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600'
                   }`}
+                  style={{ animationDelay: `${idx * 60}ms` }}
                 >
                   <div className="flex items-center gap-4">
-                    <span className="text-2xl w-6">{medal}</span>
-                    <p className="text-slate-900 dark:text-white">
-                      #{idx + 1} {player.name}
-                      {isCurrentPlayer && (
-                        <span className="ml-2 text-xs bg-blue-600 text-white px-2 py-0.5 rounded">
-                          You
+                    <span className="text-3xl w-8">{medal}</span>
+                    <p className="text-slate-900 dark:text-white font-semibold">
+                      #{idx + 1} <span className="ml-2">{player.name}</span>
+                      {isCurrentPlayer && !isHost && (
+                        <span className="ml-3 text-xs bg-blue-600 text-white px-3 py-1 rounded-full font-bold animate-pulse">
+                          ⭐ You
                         </span>
                       )}
                     </p>
                   </div>
-                  <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                  <p className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-blue-400 bg-clip-text text-transparent">
                     {player.score}
                   </p>
                 </div>
@@ -141,43 +152,33 @@ export default function ResultsPage() {
           </div>
         </Card>
 
-        {/* Actions */}
-        <div className="space-y-3">
+        {/* Action Buttons */}
+        <div className="mt-8 flex flex-col sm:flex-row gap-4 animate-slide-up">
+          {isHost && !currentPlayer && (
+            <Button
+              variant="secondary"
+              size="lg"
+              className="flex-1 sm:flex-0"
+              onClick={() => {
+                reset();
+                router.push(`/host/${session.quiz.id}`);
+              }}
+            >
+              🎮 Host Quiz Again
+            </Button>
+          )}
           <Button
             variant="primary"
             size="lg"
-            className="w-full"
+            className="flex-1"
             onClick={() => {
               reset();
               router.push('/');
             }}
           >
-            Back to Home
-          </Button>
-          <Button
-            variant="outline"
-            size="lg"
-            className="w-full"
-            onClick={() => {
-              reset();
-              router.push('/create-quiz');
-            }}
-          >
-            Create Another Quiz
+            🏠 Back to Home
           </Button>
         </div>
-
-        {/* Share Results */}
-        <Card className="shadow-xl mt-8 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20">
-          <div className="text-center">
-            <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">
-              Share this quiz with your friends!
-            </p>
-            <code className="block bg-slate-100 dark:bg-slate-800 p-3 rounded text-sm text-slate-900 dark:text-white font-mono">
-              {code}
-            </code>
-          </div>
-        </Card>
       </div>
     </div>
   );
