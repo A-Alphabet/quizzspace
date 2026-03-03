@@ -1,0 +1,72 @@
+'use client';
+
+import { useEffect, useRef } from 'react';
+import PusherJs from 'pusher-js';
+import { useGame } from './GameContext';
+
+export function PusherProvider({ children }: { children: React.ReactNode }) {
+  const pusherRef = useRef<PusherJs | null>(null);
+  const { session } = useGame();
+
+  useEffect(() => {
+    // Initialize Pusher
+    if (!pusherRef.current && typeof window !== 'undefined') {
+      try {
+        pusherRef.current = new PusherJs(
+          process.env.NEXT_PUBLIC_PUSHER_KEY || '',
+          {
+            cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER || 'mt1',
+          }
+        );
+      } catch (err) {
+        console.error('Failed to initialize Pusher:', err);
+      }
+    }
+
+    return () => {
+      // Cleanup subscriptions when component unmounts or session changes
+      if (pusherRef.current && session) {
+        const channel = pusherRef.current.channel(`session-${session.joinCode}`);
+        if (channel) {
+          pusherRef.current.unsubscribe(`session-${session.joinCode}`);
+        }
+      }
+    };
+  }, [session]);
+
+  // Subscribe to session channel when session is available
+  useEffect(() => {
+    if (!pusherRef.current || !session) return;
+
+    try {
+      const channel = pusherRef.current.subscribe(`session-${session.joinCode}`);
+
+      // Real-time event listeners
+      channel.bind('player_joined', (data: any) => {
+        console.log('Player joined:', data);
+      });
+
+      channel.bind('question_start', (data: any) => {
+        console.log('Question started:', data);
+      });
+
+      channel.bind('leaderboard_update', (data: any) => {
+        console.log('Leaderboard updated:', data);
+      });
+
+      channel.bind('game_over', (data: any) => {
+        console.log('Game over:', data);
+      });
+
+      return () => {
+        channel.unbind_all();
+      };
+    } catch (err) {
+      console.error('Failed to subscribe to Pusher channel:', err);
+    }
+  }, [session]);
+
+  // In a production app, you'd pass pusherRef.current through context
+  // For MVP, we're relying on polling for now
+  return <>{children}</>;
+}

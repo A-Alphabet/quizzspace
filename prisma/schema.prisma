@@ -1,0 +1,113 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Quiz {
+  id        String   @id @default(cuid())
+  title     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  questions Question[]
+  sessions  Session[]
+
+  @@map("quizzes")
+}
+
+model Question {
+  id           String   @id @default(cuid())
+  quizId       String
+  text         String
+  timerSeconds Int      @default(20)
+  orderIndex   Int
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  quiz    Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  choices Choice[]
+  answers Answer[]
+
+  @@index([quizId])
+  @@map("questions")
+}
+
+model Choice {
+  id         String   @id @default(cuid())
+  questionId String
+  text       String
+  isCorrect  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  answers  Answer[]
+
+  @@index([questionId])
+  @@map("choices")
+}
+
+model Session {
+  id                   String   @id @default(cuid())
+  quizId               String
+  joinCode             String   @unique
+  status               String   @default("waiting") // waiting | active | finished
+  currentQuestionIndex Int      @default(0)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  startedAt            DateTime?
+  endedAt              DateTime?
+
+  quiz    Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  players Player[]
+  answers Answer[]
+
+  @@index([quizId])
+  @@index([joinCode])
+  @@map("sessions")
+}
+
+model Player {
+  id        String   @id @default(cuid())
+  sessionId String
+  name      String
+  score     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  answers  Answer[]
+
+  @@index([sessionId])
+  @@map("players")
+}
+
+model Answer {
+  id              String   @id @default(cuid())
+  playerId        String
+  questionId      String
+  selectedChoiceId String
+  timeTaken       Int      // in milliseconds
+  isCorrect       Boolean  @default(false)
+  pointsAwarded   Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  sessionId       String
+
+  player        Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  question      Question @relation(fields: [questionId], references: [id])
+  selectedChoice Choice   @relation(fields: [selectedChoiceId], references: [id])
+  session       Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([playerId])
+  @@index([questionId])
+  @@index([sessionId])
+  @@map("answers")
+}
