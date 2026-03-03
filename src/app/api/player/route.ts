@@ -88,21 +88,22 @@ export async function DELETE(req: NextRequest) {
       return successResponse({ error: 'playerId and sessionId are required' }, 400);
     }
 
-    // Find the player and session
+    // Find the player first
     const player = await prisma.player.findUnique({
       where: { id: playerId },
-      include: {
-        session: {
-          select: {
-            id: true,
-            joinCode: true,
-          },
-        },
-      },
     });
 
     if (!player || player.sessionId !== sessionId) {
       return successResponse({ error: 'Player not found' }, 404);
+    }
+
+    // Get the session details before deleting the player
+    const session = await prisma.session.findUnique({
+      where: { id: sessionId },
+    });
+
+    if (!session) {
+      return successResponse({ error: 'Session not found' }, 404);
     }
 
     // Delete the player
@@ -111,12 +112,17 @@ export async function DELETE(req: NextRequest) {
     });
 
     // Broadcast player removed event
-    await broadcastToSession(player.session.joinCode, eventNames.PLAYER_REMOVED, {
-      playerId: playerId,
-      playerName: player.name,
-    });
+    try {
+      await broadcastToSession(session.joinCode, eventNames.PLAYER_REMOVED, {
+        playerId: playerId,
+        playerName: player.name,
+      });
+    } catch (broadcastError) {
+      console.error('Failed to broadcast player removal:', broadcastError);
+      // Continue even if broadcast fails
+    }
 
-    // Fetch updated session
+    // Fetch updated session with players
     const updatedSession = await prisma.session.findUnique({
       where: { id: sessionId },
       include: { players: true },
@@ -130,6 +136,7 @@ export async function DELETE(req: NextRequest) {
       200
     );
   } catch (error) {
+    console.error('Delete player error:', error);
     return handleErrorResponse(error);
   }
 }

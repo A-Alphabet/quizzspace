@@ -66,7 +66,7 @@ export default function HostDashboard() {
       } catch (err) {
         console.error('Failed to poll session:', err);
       }
-    }, 2000); // Poll every 2 seconds
+    }, 1500); // Poll every 1.5 seconds
 
     return () => clearInterval(pollInterval);
   }, [session?.joinCode]);
@@ -128,13 +128,21 @@ export default function HostDashboard() {
         }),
       });
 
-      if (!response.ok) throw new Error('Failed to remove player');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to remove player');
+      }
 
       const data = await response.json();
-      setSessionData(data.session);
+      if (data.session) {
+        setSessionData(data.session);
+      }
     } catch (err) {
-      setError('Failed to remove player. Please try again.');
-      console.error(err);
+      const errorMsg = err instanceof Error ? err.message : 'Failed to remove player';
+      setError(`Error: ${errorMsg}`);
+      console.error('Remove player error:', err);
+      // Clear error after 3 seconds
+      setTimeout(() => setError(''), 3000);
     }
   };
 
