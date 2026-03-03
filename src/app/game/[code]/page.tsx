@@ -257,6 +257,9 @@ export default function GamePage() {
   }
 
   const currentQuestion = session.quiz.questions[session.currentQuestionIndex];
+  const currentPlayerScore = currentPlayer
+    ? session.players.find((player) => player.id === currentPlayer.id)?.score ?? 0
+    : 0;
 
   // Host control view
   if (isHost && !currentPlayer) {
@@ -563,9 +566,16 @@ export default function GamePage() {
             </p>
           </div>
 
-          {/* Timer */}
-          <div className={`text-5xl font-bold font-mono transition-all duration-300 ${timerColor} ${timeLeft < 5 ? 'animate-pulse' : ''}`}>
-            {timeLeft}s
+          {/* Player Score + Timer */}
+          <div className="text-right">
+            <div className="mb-2 inline-block px-3 py-1 rounded-lg bg-blue-100 dark:bg-blue-900 border border-blue-300 dark:border-blue-700">
+              <p className="text-sm font-semibold text-blue-700 dark:text-blue-300">
+                Score: {currentPlayerScore}
+              </p>
+            </div>
+            <div className={`text-5xl font-bold font-mono transition-all duration-300 ${timerColor} ${timeLeft < 5 ? 'animate-pulse' : ''}`}>
+              {timeLeft}s
+            </div>
           </div>
         </div>
 
@@ -641,11 +651,6 @@ export default function GamePage() {
           )}
         </Card>
 
-        <Card className="shadow-xl animate-scale-in">
-          <p className="text-center text-sm font-medium text-slate-700 dark:text-slate-300">
-            📊 Leaderboard is hidden during questions. It appears after each round.
-          </p>
-        </Card>
       </div>
     </div>
   );
