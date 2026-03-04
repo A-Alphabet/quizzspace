@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import PusherJs from 'pusher-js';
 import { Card, Button, Alert } from '@/components/ui';
 import { useGame } from '@/contexts/GameContext';
 
@@ -241,8 +242,42 @@ export default function GamePage() {
       fetchSession();
     });
 
-    const sessionInterval = setInterval(fetchSession, 2500);
-    return () => clearInterval(sessionInterval);
+    let pusher: PusherJs | null = null;
+    let channel: PusherJs.Channel | null = null;
+    if (process.env.NEXT_PUBLIC_PUSHER_KEY) {
+      try {
+        pusher = new PusherJs(process.env.NEXT_PUBLIC_PUSHER_KEY, {
+          cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER || 'mt1',
+        });
+        channel = pusher.subscribe(`session-${code}`);
+
+        const onSessionEvent = () => {
+          fetchSession();
+        };
+
+        channel.bind('player_joined', onSessionEvent);
+        channel.bind('player_removed', onSessionEvent);
+        channel.bind('question_start', onSessionEvent);
+        channel.bind('leaderboard_update', onSessionEvent);
+        channel.bind('session_paused', onSessionEvent);
+        channel.bind('session_resumed', onSessionEvent);
+        channel.bind('game_over', onSessionEvent);
+      } catch (err) {
+        console.error('Failed to initialize game realtime updates:', err);
+      }
+    }
+
+    const sessionInterval = setInterval(fetchSession, 6000);
+    return () => {
+      clearInterval(sessionInterval);
+      if (channel) {
+        channel.unbind_all();
+      }
+      if (pusher) {
+        pusher.unsubscribe(`session-${code}`);
+        pusher.disconnect();
+      }
+    };
   }, [code, currentPlayer, isHost, router, setGamePhase, wasRemoved, setWasRemoved, mergeLiteSession]);
 
   // Handle removed state — show message then redirect

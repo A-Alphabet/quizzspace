@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import PusherJs from 'pusher-js';
 import { Button, Card, Alert } from '@/components/ui';
 import { useGame } from '@/contexts/GameContext';
 
@@ -93,7 +94,7 @@ export default function HostDashboard() {
     if (!joinCode) return;
     let isPolling = false;
 
-    const pollInterval = setInterval(async () => {
+    const fetchSession = async () => {
       if (isPolling) return;
 
       isPolling = true;
@@ -108,9 +109,49 @@ export default function HostDashboard() {
       } finally {
         isPolling = false;
       }
-    }, 2000); // Poll every 2 seconds
+    };
 
-    return () => clearInterval(pollInterval);
+    fetchSession();
+
+    let pusher: PusherJs | null = null;
+    let channel: PusherJs.Channel | null = null;
+    if (process.env.NEXT_PUBLIC_PUSHER_KEY) {
+      try {
+        pusher = new PusherJs(process.env.NEXT_PUBLIC_PUSHER_KEY, {
+          cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER || 'mt1',
+        });
+        channel = pusher.subscribe(`session-${joinCode}`);
+
+        const onSessionEvent = () => {
+          fetchSession();
+        };
+
+        channel.bind('player_joined', onSessionEvent);
+        channel.bind('player_removed', onSessionEvent);
+        channel.bind('question_start', onSessionEvent);
+        channel.bind('session_paused', onSessionEvent);
+        channel.bind('session_resumed', onSessionEvent);
+        channel.bind('lobby_locked', onSessionEvent);
+        channel.bind('lobby_unlocked', onSessionEvent);
+        channel.bind('game_over', onSessionEvent);
+      } catch (err) {
+        console.error('Failed to initialize host realtime updates:', err);
+      }
+    }
+
+    // Slower fallback polling while realtime handles most updates
+    const pollInterval = setInterval(fetchSession, 6000);
+
+    return () => {
+      clearInterval(pollInterval);
+      if (channel) {
+        channel.unbind_all();
+      }
+      if (pusher) {
+        pusher.unsubscribe(`session-${joinCode}`);
+        pusher.disconnect();
+      }
+    };
   }, [joinCode]);
 
   // Fetch quiz data
