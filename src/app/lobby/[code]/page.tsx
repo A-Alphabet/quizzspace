@@ -34,6 +34,8 @@ export default function LobbyPage() {
   const [session, setSession] = useState<SessionData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [removed, setRemoved] = useState(false);
+  const [isReconnecting, setIsReconnecting] = useState(false);
+  const [showReconnected, setShowReconnected] = useState(false);
 
   // Poll for session updates
   useEffect(() => {
@@ -54,6 +56,12 @@ export default function LobbyPage() {
         if (!response.ok) throw new Error('Session not found');
 
         const data: SessionData = await response.json();
+
+        if (isReconnecting) {
+          setIsReconnecting(false);
+          setShowReconnected(true);
+        }
+
         setSession(data);
 
         // Check if current player was removed from the session
@@ -78,6 +86,7 @@ export default function LobbyPage() {
         }
       } catch (err) {
         console.error('Failed to fetch session:', err);
+        setIsReconnecting(true);
       } finally {
         isPolling = false;
         setIsLoading(false);
@@ -101,6 +110,13 @@ export default function LobbyPage() {
       return () => clearTimeout(timer);
     }
   }, [removed, reset, router]);
+
+  useEffect(() => {
+    if (!showReconnected) return;
+
+    const timer = setTimeout(() => setShowReconnected(false), 2000);
+    return () => clearTimeout(timer);
+  }, [showReconnected]);
 
   if (removed) {
     return (
@@ -158,6 +174,18 @@ export default function LobbyPage() {
         </div>
 
         <div className="mb-8 animate-slide-up">
+          {isReconnecting && (
+            <Alert variant="warning" className="mb-4">
+              🌐 Reconnecting to live session...
+            </Alert>
+          )}
+
+          {showReconnected && (
+            <Alert variant="success" className="mb-4">
+              ✅ Reconnected. Session is live again.
+            </Alert>
+          )}
+
           <h2 className="text-lg font-semibold mb-4 text-slate-900 dark:text-white">
             👋 Welcome, <span className="text-purple-600 dark:text-purple-300">{currentPlayer?.name}</span>!
           </h2>

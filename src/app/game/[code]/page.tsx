@@ -64,6 +64,8 @@ export default function GamePage() {
   const [timeStarted, setTimeStarted] = useState<number>(0);
   const [pauseStartedAt, setPauseStartedAt] = useState<number | null>(null);
   const [removed, setRemoved] = useState(false);
+  const [isReconnecting, setIsReconnecting] = useState(false);
+  const [showReconnected, setShowReconnected] = useState(false);
   const [hostCorrectChoiceId, setHostCorrectChoiceId] = useState<string | null>(null);
   const [hostCorrectChoiceText, setHostCorrectChoiceText] = useState<string | null>(null);
   const [answerFeedback, setAnswerFeedback] = useState<AnswerFeedback | null>(null);
@@ -151,6 +153,12 @@ export default function GamePage() {
         if (!response.ok) throw new Error('Session not found');
 
         const data: SessionData = await response.json();
+
+        if (isReconnecting) {
+          setIsReconnecting(false);
+          setShowReconnected(true);
+        }
+
         setSession(data);
 
         // For players (not host): check if they are still in the session
@@ -172,6 +180,7 @@ export default function GamePage() {
       } catch (err) {
         console.error('Failed to fetch session:', err);
         setError('Failed to load session');
+        setIsReconnecting(true);
       } finally {
         isPolling = false;
       }
@@ -192,6 +201,13 @@ export default function GamePage() {
       return () => clearTimeout(timer);
     }
   }, [removed, reset, router]);
+
+  useEffect(() => {
+    if (!showReconnected) return;
+
+    const timer = setTimeout(() => setShowReconnected(false), 2000);
+    return () => clearTimeout(timer);
+  }, [showReconnected]);
 
   // Reset answer state when question changes
   useEffect(() => {
@@ -424,6 +440,18 @@ export default function GamePage() {
               </Alert>
             )}
 
+            {isReconnecting && (
+              <Alert variant="warning" className="mb-6 animate-slide-up">
+                🌐 Reconnecting to live game...
+              </Alert>
+            )}
+
+            {showReconnected && (
+              <Alert variant="success" className="mb-6 animate-slide-up">
+                ✅ Reconnected. Live updates restored.
+              </Alert>
+            )}
+
             <Card className="shadow-xl mb-6 animate-scale-in">
               <h2 className="text-2xl font-bold mb-6 text-slate-900 dark:text-white text-center">
                 🏆 Current Scores
@@ -524,6 +552,18 @@ export default function GamePage() {
           {error && (
             <Alert variant="error" className="mb-6 animate-slide-up">
               ❌ {error}
+            </Alert>
+          )}
+
+          {isReconnecting && (
+            <Alert variant="warning" className="mb-6 animate-slide-up">
+              🌐 Reconnecting to live game...
+            </Alert>
+          )}
+
+          {showReconnected && (
+            <Alert variant="success" className="mb-6 animate-slide-up">
+              ✅ Reconnected. Live updates restored.
             </Alert>
           )}
 
@@ -709,6 +749,18 @@ export default function GamePage() {
         {error && (
           <Alert variant="error" className="mb-6 animate-slide-up">
             ❌ {error}
+          </Alert>
+        )}
+
+        {isReconnecting && (
+          <Alert variant="warning" className="mb-6 animate-slide-up">
+            🌐 Reconnecting to live game...
+          </Alert>
+        )}
+
+        {showReconnected && (
+          <Alert variant="success" className="mb-6 animate-slide-up">
+            ✅ Reconnected. Live updates restored.
           </Alert>
         )}
 
