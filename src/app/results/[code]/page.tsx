@@ -14,7 +14,7 @@ interface Player {
 interface SessionData {
   id: string;
   joinCode: string;
-  status: 'waiting' | 'active' | 'finished';
+  status: 'waiting' | 'locked' | 'active' | 'paused' | 'finished';
   quiz: {
     id: string;
     title: string;

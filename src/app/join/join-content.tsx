@@ -36,6 +36,15 @@ export function JoinPageContent() {
           throw new Error('Invalid join code or session not found');
         }
         const sessionData = await sessionRes.json();
+
+        if (sessionData.status === 'locked') {
+          throw new Error('Lobby is currently locked by the host');
+        }
+
+        if (sessionData.status !== 'waiting') {
+          throw new Error('This session is no longer accepting new players');
+        }
+
         setSession(sessionData);
 
         const joinRes = await fetch('/api/player', {

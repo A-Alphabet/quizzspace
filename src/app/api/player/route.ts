@@ -53,6 +53,10 @@ export async function POST(req: NextRequest) {
       throw ApiErrors.INVALID_CODE;
     }
 
+    if (session.status === 'locked') {
+      return successResponse({ error: 'Lobby is locked by the host. Try again later.' }, 423);
+    }
+
     if (session.status !== 'waiting') {
       throw ApiErrors.SESSION_NOT_ACTIVE;
     }

@@ -32,7 +32,7 @@ export interface IQuiz {
 export interface ISession {
   id: string;
   joinCode: string;
-  status: 'waiting' | 'active' | 'finished';
+  status: 'waiting' | 'locked' | 'active' | 'paused' | 'finished';
   currentQuestionIndex: number;
   quiz: IQuiz;
   players: IPlayer[];

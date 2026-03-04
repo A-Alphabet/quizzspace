@@ -45,6 +45,10 @@ export const eventNames = {
   LEADERBOARD_UPDATE: 'leaderboard_update',
   GAME_OVER: 'game_over',
   NEXT_QUESTION: 'next_question',
+  SESSION_PAUSED: 'session_paused',
+  SESSION_RESUMED: 'session_resumed',
+  LOBBY_LOCKED: 'lobby_locked',
+  LOBBY_UNLOCKED: 'lobby_unlocked',
 };
 
 // Helper to send event to session

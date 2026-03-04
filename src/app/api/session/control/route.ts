@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === 'start') {
-      if (session.status !== 'waiting') {
+      if (session.status !== 'waiting' && session.status !== 'locked') {
         return successResponse({ error: 'Session has already been started' }, 400);
       }
 
@@ -94,8 +94,82 @@ export async function POST(req: NextRequest) {
       });
 
       return successResponse(updatedSession);
+    } else if (action === 'pause') {
+      if (session.status !== 'active') {
+        return successResponse({ error: 'Only active sessions can be paused' }, 400);
+      }
+
+      const updatedSession = await prisma.session.update({
+        where: { id: sessionId },
+        data: {
+          status: 'paused',
+        },
+      });
+
+      await broadcastToSession(session.joinCode, eventNames.SESSION_PAUSED, {
+        sessionId,
+        questionIndex: session.currentQuestionIndex,
+      });
+
+      return successResponse(updatedSession);
+    } else if (action === 'resume') {
+      if (session.status !== 'paused') {
+        return successResponse({ error: 'Only paused sessions can be resumed' }, 400);
+      }
+
+      const updatedSession = await prisma.session.update({
+        where: { id: sessionId },
+        data: {
+          status: 'active',
+        },
+      });
+
+      await broadcastToSession(session.joinCode, eventNames.SESSION_RESUMED, {
+        sessionId,
+        questionIndex: session.currentQuestionIndex,
+      });
+
+      return successResponse(updatedSession);
+    } else if (action === 'lock') {
+      if (session.status !== 'waiting') {
+        return successResponse({ error: 'Lobby can only be locked while waiting' }, 400);
+      }
+
+      const updatedSession = await prisma.session.update({
+        where: { id: sessionId },
+        data: {
+          status: 'locked',
+        },
+      });
+
+      await broadcastToSession(session.joinCode, eventNames.LOBBY_LOCKED, {
+        sessionId,
+      });
+
+      return successResponse(updatedSession);
+    } else if (action === 'unlock') {
+      if (session.status !== 'locked') {
+        return successResponse({ error: 'Lobby is not locked' }, 400);
+      }
+
+      const updatedSession = await prisma.session.update({
+        where: { id: sessionId },
+        data: {
+          status: 'waiting',
+        },
+      });
+
+      await broadcastToSession(session.joinCode, eventNames.LOBBY_UNLOCKED, {
+        sessionId,
+      });
+
+      return successResponse(updatedSession);
     } else if (action === 'next') {
       if (session.status !== 'active') {
+        if (session.status === 'paused') {
+          return successResponse({ error: 'Resume the session before advancing' }, 400);
+        }
+
         return successResponse({ error: 'Session is not active' }, 400);
       }
 
@@ -158,7 +232,7 @@ export async function POST(req: NextRequest) {
     }
 
     return successResponse(
-      { error: 'Invalid action. Use "start" or "next"' },
+      { error: 'Invalid action. Use "start", "next", "pause", "resume", "lock", or "unlock"' },
       400
     );
   } catch (error) {
