@@ -95,6 +95,14 @@ export default function HostDashboard() {
     if (!joinCode) return;
     sessionEtagRef.current = null;
     let isPolling = false;
+    let stopped = false;
+    let pollDelayMs = 6000;
+
+    const MIN_POLL_DELAY_MS = 6000;
+    const MAX_POLL_DELAY_MS = 30000;
+    const POLL_BACKOFF_MULTIPLIER = 1.8;
+
+    let pollTimeout: ReturnType<typeof setTimeout> | null = null;
 
     const fetchSession = async () => {
       if (isPolling) return;
@@ -108,12 +116,20 @@ export default function HostDashboard() {
         });
 
         if (response.status === 304) {
+          pollDelayMs = MIN_POLL_DELAY_MS;
           return;
         }
 
         if (!response.ok) {
+          const retryAfterHeader = response.headers.get('retry-after');
+          const retryAfterMs = retryAfterHeader ? Number.parseInt(retryAfterHeader, 10) * 1000 : 0;
+          if (retryAfterMs > 0) {
+            pollDelayMs = Math.max(pollDelayMs, retryAfterMs);
+          }
           throw new Error(`Session fetch failed (${response.status})`);
         }
+
+        pollDelayMs = MIN_POLL_DELAY_MS;
 
         const nextEtag = response.headers.get('etag');
         if (nextEtag) {
@@ -124,9 +140,22 @@ export default function HostDashboard() {
         setSessionData(updatedSession);
       } catch (err) {
         console.error('Failed to poll session:', err);
+        pollDelayMs = Math.min(
+          MAX_POLL_DELAY_MS,
+          Math.round(pollDelayMs * POLL_BACKOFF_MULTIPLIER)
+        );
       } finally {
         isPolling = false;
       }
+    };
+
+    const scheduleNextPoll = () => {
+      if (stopped) return;
+
+      pollTimeout = setTimeout(async () => {
+        await fetchSession();
+        scheduleNextPoll();
+      }, pollDelayMs);
     };
 
     fetchSession();
@@ -157,11 +186,13 @@ export default function HostDashboard() {
       }
     }
 
-    // Slower fallback polling while realtime handles most updates
-    const pollInterval = setInterval(fetchSession, 6000);
+    scheduleNextPoll();
 
     return () => {
-      clearInterval(pollInterval);
+      stopped = true;
+      if (pollTimeout) {
+        clearTimeout(pollTimeout);
+      }
       if (channel) {
         channel.unbind_all();
       }
