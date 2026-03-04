@@ -1,15 +1,48 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button, Input, Card, Tabs } from '@/components/ui';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'join' | 'create'>('join');
   const [joinCode, setJoinCode] = useState('');
   const [playerName, setPlayerName] = useState('');
+  const [hasSavedJoin, setHasSavedJoin] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const savedCode = localStorage.getItem('last_join_code') || '';
+    const savedName = localStorage.getItem('last_player_name') || '';
+
+    if (savedCode && savedName) {
+      setHasSavedJoin(true);
+      if (!joinCode) setJoinCode(savedCode.toUpperCase());
+      if (!playerName) setPlayerName(savedName);
+    }
+  }, [joinCode, playerName]);
+
+  const handleUseSavedJoin = () => {
+    if (typeof window === 'undefined') return;
+
+    const savedCode = localStorage.getItem('last_join_code') || '';
+    const savedName = localStorage.getItem('last_player_name') || '';
+    if (!savedCode || !savedName) return;
+
+    setJoinCode(savedCode.toUpperCase());
+    setPlayerName(savedName);
+  };
+
+  const handleClearSavedJoin = () => {
+    if (typeof window === 'undefined') return;
+
+    localStorage.removeItem('last_join_code');
+    localStorage.removeItem('last_player_name');
+    setHasSavedJoin(false);
+  };
 
   const handleJoinSession = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -89,6 +122,29 @@ export default function Home() {
                   aria-label="Player name input"
                   error={error && !playerName ? 'Name is required' : ''}
                 />
+
+                {hasSavedJoin && (
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      onClick={handleUseSavedJoin}
+                    >
+                      Use Last Details
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      onClick={handleClearSavedJoin}
+                    >
+                      Clear Saved
+                    </Button>
+                  </div>
+                )}
 
                 {error && (
                   <div className="text-sm text-red-600 dark:text-red-400 animate-slide-up font-medium">

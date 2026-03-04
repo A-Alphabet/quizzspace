@@ -64,6 +64,8 @@ export function JoinPageContent() {
         const { player } = await joinRes.json();
         setCurrentPlayer(player);
         sessionStorage.setItem('currentPlayerId', player.id);
+        localStorage.setItem('last_join_code', code);
+        localStorage.setItem('last_player_name', finalName);
         router.push(`/lobby/${code}`);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to join session. Please try again.');
