@@ -5,8 +5,14 @@ import { prisma } from '@/lib/prisma';
 import { calculatePoints } from '@/lib/game-logic';
 import { broadcastToSession, eventNames } from '@/lib/pusher';
 import { checkRateLimit, getRequestIdentifier } from '@/lib/rate-limit';
+import { acquireLoadSlot } from '@/lib/load-balancer';
 
 export async function POST(req: NextRequest) {
+  const slot = acquireLoadSlot('answer:post', 80);
+  if (!slot.acquired) {
+    return successResponse({ error: 'Server is busy. Please retry shortly.' }, 503);
+  }
+
   try {
     const ip = getRequestIdentifier(req);
     const rate = checkRateLimit(`answer:submit:${ip}`, 300, 60_000);
@@ -159,5 +165,9 @@ export async function POST(req: NextRequest) {
     );
   } catch (error) {
     return handleErrorResponse(error);
+  } finally {
+    if (slot.acquired) {
+      slot.release();
+    }
   }
 }
