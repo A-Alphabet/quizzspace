@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { Card, Button, Alert } from '@/components/ui';
 
-const RETRY_KEY = 'global_error_autoretry';
+const RETRY_KEY = 'global_error_autoreload';
 
 export default function GlobalError({
   error,
@@ -24,14 +24,14 @@ export default function GlobalError({
     const key = `${RETRY_KEY}:${route}`;
     const last = Number.parseInt(sessionStorage.getItem(key) || '0', 10);
 
-    // Auto-retry once for transient navigation/render races.
+    // Auto-reload once for transient app-router/render races.
     if (!Number.isNaN(last) && now - last < 5000) {
       return;
     }
 
     sessionStorage.setItem(key, String(now));
     const timer = window.setTimeout(() => {
-      reset();
+      window.location.reload();
     }, 80);
 
     return () => window.clearTimeout(timer);
@@ -47,7 +47,7 @@ export default function GlobalError({
               <p className="text-sm mt-1">A critical error occurred. Please try again.</p>
             </Alert>
             <div className="flex gap-2 animate-slide-up animate-delay-100">
-              <Button variant="secondary" className="flex-1" onClick={reset}>
+              <Button variant="secondary" className="flex-1" onClick={() => window.location.reload()}>
                 Retry
               </Button>
               <Button variant="outline" className="flex-1" onClick={() => (window.location.href = '/')}>

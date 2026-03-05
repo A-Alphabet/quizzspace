@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { Button, Card, Alert } from '@/components/ui';
 
-const RETRY_KEY = 'route_error_autoretry';
+const RETRY_KEY = 'route_error_autoreload';
 
 export default function ErrorPage({
   error,
@@ -24,14 +24,14 @@ export default function ErrorPage({
     const key = `${RETRY_KEY}:${route}`;
     const last = Number.parseInt(sessionStorage.getItem(key) || '0', 10);
 
-    // Auto-retry once for transient navigation/render races.
+    // Auto-reload once for transient app-router/render races.
     if (!Number.isNaN(last) && now - last < 5000) {
       return;
     }
 
     sessionStorage.setItem(key, String(now));
     const timer = window.setTimeout(() => {
-      reset();
+      window.location.reload();
     }, 80);
 
     return () => window.clearTimeout(timer);
@@ -45,7 +45,7 @@ export default function ErrorPage({
           <p className="text-sm mt-1">An unexpected error occurred while loading this page.</p>
         </Alert>
         <div className="flex gap-2 animate-slide-up animate-delay-100">
-          <Button variant="secondary" className="flex-1" onClick={reset}>
+          <Button variant="secondary" className="flex-1" onClick={() => window.location.reload()}>
             Try Again
           </Button>
           <Button variant="outline" className="flex-1" onClick={() => (window.location.href = '/')}>
