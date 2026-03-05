@@ -143,7 +143,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     if (p) {
       if (typeof window !== 'undefined') {
         try {
-          sessionStorage.setItem('currentPlayerId', p.id); // for Pusher removal detection
+          sessionStorage.setItem('currentPlayerId', p.id); // for realtime removal detection
         } catch {}
       }
     } else {

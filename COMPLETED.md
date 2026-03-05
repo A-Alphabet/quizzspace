@@ -64,7 +64,7 @@ quizzspace/
 │   │   ├── globals.css       # Global styles + accessibility
 │   │   └── layout.tsx        # Root layout with providers
 │   ├── components/           # Reusable UI (Button, Card, Input, etc)
-│   ├── contexts/             # GameContext, PusherProvider
+│   ├── contexts/             # GameContext, RealtimeProvider
 │   └── lib/                  # Utilities (Prisma, Pusher, Zod, scoring)
 ├── prisma/
 │   └── schema.prisma         # Database schema

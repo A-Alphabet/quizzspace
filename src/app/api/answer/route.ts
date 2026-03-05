@@ -3,7 +3,7 @@ import { SubmitAnswerSchema } from '@/lib/validations';
 import { handleErrorResponse, successResponse } from '@/lib/api-errors';
 import { prisma } from '@/lib/prisma';
 import { calculatePoints } from '@/lib/game-logic';
-import { broadcastToSession, eventNames } from '@/lib/pusher';
+import { broadcastToSession, eventNames } from '@/lib/realtime';
 import { checkRateLimit, getRequestIdentifier } from '@/lib/rate-limit';
 import { acquireLoadSlot } from '@/lib/load-balancer';
 

@@ -24,21 +24,18 @@ Choose either **Supabase** or **Neon** for free PostgreSQL hosting.
 # Database (from Step 1)
 POSTGRES_PRISMA_URL="postgresql://user:password@host:port/database"
 
-# Pusher credentials (get from https://pusher.com)
-PUSHER_APP_ID="your_app_id"
-NEXT_PUBLIC_PUSHER_KEY="your_public_key"
-PUSHER_SECRET="your_secret_key"
-NEXT_PUBLIC_PUSHER_CLUSTER="mt1"  # or your region: us2, eu, ap1, etc
+# Ably credentials (get from https://ably.com)
+ABLY_API_KEY="your_api_key"
 MASTER_PASSWORD="replace_with_strong_admin_password"
 
 # Optional: API URL (for Vercel production)
 NEXT_PUBLIC_API_URL="https://your-domain.vercel.app"
 ```
 
-### Get Pusher Keys:
-1. Go to https://pusher.com and sign up (free tier available)
+### Get Ably Key:
+1. Go to https://ably.com and sign up (free tier available)
 2. Create new app
-3. Copy App ID, Key, Secret, and Cluster
+3. Copy your API key (`appId.keyId:secret`)
 4. Add to `.env.local`
 
 ---
@@ -83,7 +80,7 @@ Open: http://localhost:3000
 - GitHub repository (already set up ✅)
 - Vercel account (https://vercel.com)
 - Database URL ready
-- Pusher keys ready
+- Ably API key ready
 
 ### Deployment Steps:
 
@@ -99,10 +96,7 @@ Open: http://localhost:3000
      ```
      DATABASE_URL
        POSTGRES_PRISMA_URL
-     PUSHER_APP_ID
-     PUSHER_SECRET
-     NEXT_PUBLIC_PUSHER_KEY
-     NEXT_PUBLIC_PUSHER_CLUSTER
+       ABLY_API_KEY
        MASTER_PASSWORD
      NEXT_PUBLIC_API_URL (optional)
      ```
@@ -130,10 +124,10 @@ Open: http://localhost:3000
 - Verify PostgreSQL server is running
 - Check connection string format
 
-### Pusher Not Connecting
-**Error:** JavaScript console shows Pusher connection error
-- Verify all Pusher keys in `.env.local`
-- Check cluster matches Pusher app settings
+### Realtime Not Connecting
+**Error:** JavaScript console shows Ably connection error
+- Verify `ABLY_API_KEY` in `.env.local`
+- Check `/api/ably/auth` responds with a token request
 - Enable JavaScript in browser
 
 ### Build Fails on Vercel
@@ -153,7 +147,7 @@ Open: http://localhost:3000
 ## Verification Checklist
 
 - [ ] Database created and connection string obtained
-- [ ] Pusher app created and keys obtained
+- [ ] Ably app created and API key obtained
 - [ ] `.env.local` file created with all variables
 - [ ] `npm install` completed without errors
 - [ ] `npx prisma generate` ran successfully
@@ -178,7 +172,7 @@ Open: http://localhost:3000
 - [ ] Test error scenarios (invalid codes, network issues)
 - [ ] Monitor Vercel logs for any errors
 - [ ] Set up database backups
-- [ ] Monitor Pusher usage and costs
+- [ ] Monitor Ably usage and costs
 - [ ] Enable HTTPS (Vercel default)
 - [ ] Configure custom domain (optional)
 

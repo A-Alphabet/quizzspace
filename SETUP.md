@@ -15,7 +15,7 @@ cp .env.example .env.local
 
 **Required variables:**
 - `DATABASE_URL`: PostgreSQL connection string (e.g., from Supabase or Neon)
-- `PUSHER_APP_ID`, `PUSHER_KEY`, `PUSHER_SECRET`, `PUSHER_CLUSTER`: Get these from [Pusher](https://pusher.com)
+- `ABLY_API_KEY`: Get this from [Ably](https://ably.com)
 
 ### 3. Set Up Database
 ```bash
@@ -52,17 +52,14 @@ $env:NEXT_DISABLE_SWC=1; npm run build
 ### Prerequisites
 - GitHub repository linked
 - PostgreSQL database created (Supabase/Neon recommended)
-- Pusher account with keys generated
+- Ably account with API key generated
 
 ### Steps
 1. Push code to GitHub
 2. Connect repository to [Vercel](https://vercel.com)
 3. Add environment variables in Vercel project settings:
    - `DATABASE_URL`
-   - `PUSHER_APP_ID`
-   - `PUSHER_SECRET`
-   - `NEXT_PUBLIC_PUSHER_KEY`
-   - `NEXT_PUBLIC_PUSHER_CLUSTER`
+   - `ABLY_API_KEY`
 4. Deploy
 
 ---
@@ -93,10 +90,10 @@ $env:NEXT_DISABLE_SWC=1; npm run build
 - Verify PostgreSQL server is running
 - Test with: `npx prisma db execute --stdin < <<'EOF'\nSELECT 1;\nEOF\n`
 
-**Pusher Not Working:**
-- Verify all Pusher keys in `.env.local`
-- Check Pusher app cluster matches config
-- Browser console should show Pusher connection logs
+**Realtime Not Working:**
+- Verify `ABLY_API_KEY` in `.env.local`
+- Confirm `/api/ably/auth` returns a token request payload
+- Browser console should show Ably connection logs
 
 ---
 
@@ -105,7 +102,7 @@ $env:NEXT_DISABLE_SWC=1; npm run build
 - **Frontend**: Next.js 14 App Router, React, TailwindCSS
 - **Backend**: Next.js API Routes (serverless)
 - **Database**: PostgreSQL with Prisma ORM
-- **Real-time**: Pusher pub/sub
+- **Real-time**: Ably pub/sub
 - **Validation**: Zod schemas
 - **Deployment**: Vercel
 

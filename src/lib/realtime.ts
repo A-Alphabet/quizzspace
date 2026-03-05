@@ -1,33 +1,29 @@
-import Pusher from 'pusher';
+import Ably from 'ably';
 import { getEnv } from '@/lib/env';
 
-// Create Pusher instance if credentials are available, otherwise mock it
-let pusherInstance: Pusher | null = null;
+type RealtimePublisher = {
+  publish: (channel: string, event: string, data: Record<string, unknown>) => Promise<void>;
+};
+
+// Create Ably REST instance if credentials are available, otherwise use no-op fallback.
+let realtimePublisher: RealtimePublisher | null = null;
 
 const env = getEnv();
 
-if (
-  env.PUSHER_APP_ID &&
-  env.NEXT_PUBLIC_PUSHER_KEY &&
-  env.PUSHER_SECRET &&
-  env.NEXT_PUBLIC_PUSHER_CLUSTER
-) {
-  pusherInstance = new Pusher({
-    appId: env.PUSHER_APP_ID,
-    key: env.NEXT_PUBLIC_PUSHER_KEY,
-    secret: env.PUSHER_SECRET,
-    cluster: env.NEXT_PUBLIC_PUSHER_CLUSTER,
-    useTLS: true,
-  });
+if (env.ABLY_API_KEY) {
+  const ably = new Ably.Rest(env.ABLY_API_KEY);
+  realtimePublisher = {
+    publish: async (channel, event, data) => {
+      await ably.channels.get(channel).publish(event, data);
+    },
+  };
 } else if (env.NODE_ENV === 'production') {
-  console.warn('Pusher env vars are missing; app will run with polling fallback.');
+  console.warn('Ably env var is missing; app will run with polling fallback.');
 }
 
-// Export a mock/real pusher instance
-export const pusher = pusherInstance || {
-  trigger: async () => ({ ok: true }),
-  subscribe: async () => ({}),
-  unsubscribe: async () => ({}),
+// Export a mock/real publisher
+export const realtime = realtimePublisher || {
+  publish: async () => {},
 };
 
 // Channel naming conventions
@@ -57,7 +53,7 @@ export async function broadcastToSession(
   event: string,
   data: Record<string, unknown>
 ) {
-  return pusher.trigger(channelNames.session(code), event, data);
+  return realtime.publish(channelNames.session(code), event, data);
 }
 
 // Helper to send event to specific player
@@ -67,7 +63,7 @@ export async function sendToPlayer(
   event: string,
   data: Record<string, unknown>
 ) {
-  return pusher.trigger(
+  return realtime.publish(
     `${channelNames.playerSession(sessionId)}-${playerId}`,
     event,
     data

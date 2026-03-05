@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { createHash } from 'crypto';
-import { handleErrorResponse, successResponse, ApiErrors } from '@/lib/api-errors';
+import { handleErrorResponse, ApiErrors } from '@/lib/api-errors';
 import { prisma } from '@/lib/prisma';
 import { isValidCode } from '@/lib/game-logic';
 import { acquireLoadSlot } from '@/lib/load-balancer';

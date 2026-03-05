@@ -1,53 +1,53 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import PusherJs from 'pusher-js';
+import * as Ably from 'ably';
 import { useGame } from './GameContext';
 
 type PlayerRemovedEvent = {
   playerId?: string;
 };
 
-export function PusherProvider({ children }: { children: React.ReactNode }) {
-  const pusherRef = useRef<PusherJs | null>(null);
+type AblyMessage = {
+  data?: unknown;
+};
+
+export function RealtimeProvider({ children }: { children: React.ReactNode }) {
+  const realtimeRef = useRef<Ably.Realtime | null>(null);
   const pendingRefreshTimeoutRef = useRef<number | null>(null);
   const sessionEtagRef = useRef<string | null>(null);
   const { session, setSession, setGamePhase, isHost } = useGame();
 
   useEffect(() => {
-    // Only initialize Pusher if key is available
-    if (!pusherRef.current && typeof window !== 'undefined' && process.env.NEXT_PUBLIC_PUSHER_KEY) {
+    if (!realtimeRef.current && typeof window !== 'undefined') {
       try {
-        pusherRef.current = new PusherJs(
-          process.env.NEXT_PUBLIC_PUSHER_KEY,
-          {
-            cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER || 'mt1',
-          }
-        );
+        realtimeRef.current = new Ably.Realtime({
+          authUrl: '/api/ably/auth',
+        });
       } catch (err) {
-        console.error('Failed to initialize Pusher:', err);
-        pusherRef.current = null;
+        console.error('Failed to initialize Ably:', err);
+        realtimeRef.current = null;
       }
     }
 
     return () => {
-      // Cleanup subscriptions when component unmounts or session changes
-      if (pusherRef.current && session) {
-        const channel = pusherRef.current.channel(`session-${session.joinCode}`);
-        if (channel) {
-          pusherRef.current.unsubscribe(`session-${session.joinCode}`);
-        }
+      if (realtimeRef.current && session) {
+        const channelName = `session-${session.joinCode}`;
+        const channel = realtimeRef.current.channels.get(channelName);
+        channel.unsubscribe();
+        realtimeRef.current.channels.release(channelName);
       }
     };
   }, [session]);
 
   // Subscribe to session channel when session is available
   useEffect(() => {
-    if (!pusherRef.current || !session) return;
+    if (!realtimeRef.current || !session) return;
     sessionEtagRef.current = null;
 
     try {
-      const channel = pusherRef.current.subscribe(`session-${session.joinCode}`);
+      const channelName = `session-${session.joinCode}`;
+      const channel = realtimeRef.current.channels.get(channelName);
 
       // Fetch updated session data from API
       const fetchUpdatedSession = async () => {
@@ -89,13 +89,13 @@ export function PusherProvider({ children }: { children: React.ReactNode }) {
         }, 150);
       };
 
-      // Real-time event listeners
-      channel.bind('player_joined', (data: unknown) => {
-        console.log('Player joined:', data);
+      const onPlayerJoined = (message: AblyMessage) => {
+        console.log('Player joined:', message.data);
         scheduleSessionRefresh();
-      });
+      };
 
-      channel.bind('player_removed', (data: PlayerRemovedEvent) => {
+      const onPlayerRemoved = (message: AblyMessage) => {
+        const data = (message.data ?? {}) as PlayerRemovedEvent;
         console.log('Player removed:', data);
         scheduleSessionRefresh();
         // If current player was removed, redirect to home
@@ -103,46 +103,56 @@ export function PusherProvider({ children }: { children: React.ReactNode }) {
           alert('You have been removed from the session by the host.');
           window.location.href = '/';
         }
-      });
+      };
 
-      channel.bind('question_start', (data: unknown) => {
-        console.log('Question started:', data);
+      const onQuestionStart = (message: AblyMessage) => {
+        console.log('Question started:', message.data);
         scheduleSessionRefresh();
         if (isHost) {
           setGamePhase('question');
         }
-      });
+      };
 
-      channel.bind('leaderboard_update', (data: unknown) => {
-        console.log('Leaderboard updated:', data);
+      const onLeaderboardUpdate = (message: AblyMessage) => {
+        console.log('Leaderboard updated:', message.data);
         scheduleSessionRefresh();
         if (isHost) {
           setGamePhase('leaderboard');
         }
-      });
+      };
 
-      channel.bind('game_over', (data: unknown) => {
-        console.log('Game over:', data);
+      const onGameOver = (message: AblyMessage) => {
+        console.log('Game over:', message.data);
         scheduleSessionRefresh();
         if (isHost) {
           setGamePhase('finished');
         }
-      });
+      };
+
+      channel.subscribe('player_joined', onPlayerJoined);
+      channel.subscribe('player_removed', onPlayerRemoved);
+      channel.subscribe('question_start', onQuestionStart);
+      channel.subscribe('leaderboard_update', onLeaderboardUpdate);
+      channel.subscribe('game_over', onGameOver);
 
       return () => {
         if (pendingRefreshTimeoutRef.current !== null) {
           window.clearTimeout(pendingRefreshTimeoutRef.current);
           pendingRefreshTimeoutRef.current = null;
         }
-        channel.unbind_all();
+        channel.unsubscribe('player_joined', onPlayerJoined);
+        channel.unsubscribe('player_removed', onPlayerRemoved);
+        channel.unsubscribe('question_start', onQuestionStart);
+        channel.unsubscribe('leaderboard_update', onLeaderboardUpdate);
+        channel.unsubscribe('game_over', onGameOver);
       };
     } catch (err) {
-      console.error('Failed to subscribe to Pusher channel:', err);
-      // Continue without Pusher - polling will handle updates
+      console.error('Failed to subscribe to Ably channel:', err);
+      // Continue without realtime - polling will handle updates
     }
   }, [session, setSession, setGamePhase, isHost]);
 
-  // In a production app, you'd pass pusherRef.current through context
+  // In a production app, you'd pass realtimeRef.current through context
   // For MVP, we're relying on polling for now
   return <>{children}</>;
 }

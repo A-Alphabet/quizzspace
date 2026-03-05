@@ -1,6 +1,6 @@
 # LiveQuiz MVP
 
-A production-ready real-time quiz platform inspired by Kahoot and Quizizz, built with Next.js 14, Pusher, and Prisma. Fully deployable on Vercel.
+A production-ready real-time quiz platform inspired by Kahoot and Quizizz, built with Next.js 14, Ably, and Prisma. Fully deployable on Vercel.
 
 ## Features
 
@@ -19,14 +19,14 @@ A production-ready real-time quiz platform inspired by Kahoot and Quizizz, built
 - **React 19**
 - **TailwindCSS** - Styling
 - **React Context** - State management
-- **Pusher.js** - Real-time updates
+- **Ably Realtime** - Real-time updates
 - **Zod** - Data validation
 
 ### Backend
 - **Next.js API Routes** - Serverless backend
 - **Prisma ORM** - Database access
 - **Zod** - Request validation
-- **Pusher** - Real-time pub/sub
+- **Ably** - Real-time pub/sub
 
 ### Database
 - **PostgreSQL** - Data persistence
@@ -40,7 +40,7 @@ A production-ready real-time quiz platform inspired by Kahoot and Quizizz, built
 ### Prerequisites
 - Node.js 20+ (specified in `.nvmrc`)
 - PostgreSQL database (Supabase or Neon)
-- Pusher account (free tier available)
+- Ably account (free tier available)
 
 ### Installation
 
@@ -62,7 +62,7 @@ A production-ready real-time quiz platform inspired by Kahoot and Quizizz, built
    
    Fill in your configuration:
    - `POSTGRES_PRISMA_URL` - PostgreSQL connection string
-   - `PUSHER_APP_ID`, `NEXT_PUBLIC_PUSHER_KEY`, `PUSHER_SECRET`, `NEXT_PUBLIC_PUSHER_CLUSTER`
+   - `ABLY_API_KEY`
    - `MASTER_PASSWORD` - Admin password for quiz creation auth
    - `NEXT_PUBLIC_API_URL` - Your app URL (localhost:3000 for development)
 
@@ -139,14 +139,14 @@ points = 1000 + (1 - timeTaken/maxTime) * 500
 
 ## Real-time Features
 
-### Pusher Events
+### Realtime Events
 - `player_joined` - New player joined session
 - `question_start` - Host started a new question
 - `leaderboard_update` - Scores updated after answer
 - `next_question` - Moved to next question
 - `game_over` - Quiz finished
 
-**Note**: This MVP uses polling for base implementation. Pusher integration for full real-time updates is configured but can be fully connected for production.
+**Note**: This MVP uses polling as a fallback. Ably integration is configured for full real-time updates in production.
 
 ## Accessibility
 
@@ -201,10 +201,7 @@ In Vercel Project Settings → Environment Variables, add:
 
 ```
 POSTGRES_PRISMA_URL=postgresql://...
-PUSHER_APP_ID=...
-NEXT_PUBLIC_PUSHER_KEY=...
-PUSHER_SECRET=...
-NEXT_PUBLIC_PUSHER_CLUSTER=mt1
+ABLY_API_KEY=...
 MASTER_PASSWORD=...
 NEXT_PUBLIC_API_URL=https://your-domain.vercel.app
 ```
@@ -240,10 +237,10 @@ src/
 │   └── ui.tsx               # Reusable UI components
 ├── contexts/
 │   ├── GameContext.tsx      # Global game state
-│   └── PusherProvider.tsx   # Real-time provider
+│   └── RealtimeProvider.tsx # Real-time provider (Ably)
 └── lib/
     ├── prisma.ts            # Prisma client
-    ├── pusher.ts            # Pusher config
+      ├── realtime.ts          # Realtime config (Ably-backed)
     ├── validations.ts       # Zod schemas
     ├── game-logic.ts        # Scoring & utilities
     └── api-errors.ts        # Error handling

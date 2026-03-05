@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import PusherJs from 'pusher-js';
+import * as Ably from 'ably';
 import { Button, Card, Alert } from '@/components/ui';
 import { useGame } from '@/contexts/GameContext';
 
@@ -160,30 +160,27 @@ export default function HostDashboard() {
 
     fetchSession();
 
-    let pusher: PusherJs | null = null;
-    let channel: ReturnType<InstanceType<typeof PusherJs>['subscribe']> | null = null;
-    if (process.env.NEXT_PUBLIC_PUSHER_KEY) {
-      try {
-        pusher = new PusherJs(process.env.NEXT_PUBLIC_PUSHER_KEY, {
-          cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER || 'mt1',
-        });
-        channel = pusher.subscribe(`session-${joinCode}`);
+    let realtime: Ably.Realtime | null = null;
+    let channel: Ably.RealtimeChannel | null = null;
+    const onSessionEvent = () => {
+      fetchSession();
+    };
 
-        const onSessionEvent = () => {
-          fetchSession();
-        };
-
-        channel.bind('player_joined', onSessionEvent);
-        channel.bind('player_removed', onSessionEvent);
-        channel.bind('question_start', onSessionEvent);
-        channel.bind('session_paused', onSessionEvent);
-        channel.bind('session_resumed', onSessionEvent);
-        channel.bind('lobby_locked', onSessionEvent);
-        channel.bind('lobby_unlocked', onSessionEvent);
-        channel.bind('game_over', onSessionEvent);
-      } catch (err) {
-        console.error('Failed to initialize host realtime updates:', err);
-      }
+    try {
+      realtime = new Ably.Realtime({
+        authUrl: '/api/ably/auth',
+      });
+      channel = realtime.channels.get(`session-${joinCode}`);
+      channel.subscribe('player_joined', onSessionEvent);
+      channel.subscribe('player_removed', onSessionEvent);
+      channel.subscribe('question_start', onSessionEvent);
+      channel.subscribe('session_paused', onSessionEvent);
+      channel.subscribe('session_resumed', onSessionEvent);
+      channel.subscribe('lobby_locked', onSessionEvent);
+      channel.subscribe('lobby_unlocked', onSessionEvent);
+      channel.subscribe('game_over', onSessionEvent);
+    } catch (err) {
+      console.error('Failed to initialize host realtime updates:', err);
     }
 
     scheduleNextPoll();
@@ -194,11 +191,18 @@ export default function HostDashboard() {
         clearTimeout(pollTimeout);
       }
       if (channel) {
-        channel.unbind_all();
+        channel.unsubscribe('player_joined', onSessionEvent);
+        channel.unsubscribe('player_removed', onSessionEvent);
+        channel.unsubscribe('question_start', onSessionEvent);
+        channel.unsubscribe('session_paused', onSessionEvent);
+        channel.unsubscribe('session_resumed', onSessionEvent);
+        channel.unsubscribe('lobby_locked', onSessionEvent);
+        channel.unsubscribe('lobby_unlocked', onSessionEvent);
+        channel.unsubscribe('game_over', onSessionEvent);
       }
-      if (pusher) {
-        pusher.unsubscribe(`session-${joinCode}`);
-        pusher.disconnect();
+      if (realtime) {
+        realtime.channels.release(`session-${joinCode}`);
+        realtime.close();
       }
     };
   }, [joinCode]);
@@ -239,7 +243,7 @@ export default function HostDashboard() {
       setSessionData(newSession);
       setSessionCreated(true);
       setIsHost(true);
-      // Also set in GameContext so Pusher and game page can access it
+      // Also set in GameContext so realtime subscribers can access it
       setSession(newSession);
     } catch (err) {
       setError('Failed to create session. Please try again.');

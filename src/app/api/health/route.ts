@@ -9,12 +9,7 @@ export async function GET() {
 
     await prisma.$queryRaw`SELECT 1`;
 
-    const pusherConfigured = Boolean(
-      env.PUSHER_APP_ID &&
-        env.NEXT_PUBLIC_PUSHER_KEY &&
-        env.PUSHER_SECRET &&
-        env.NEXT_PUBLIC_PUSHER_CLUSTER
-    );
+    const realtimeConfigured = Boolean(env.ABLY_API_KEY);
 
     const loadBalancer = getLoadBalancerStats();
 
@@ -23,7 +18,7 @@ export async function GET() {
       timestamp: new Date().toISOString(),
       checks: {
         database: 'ok',
-        pusher: pusherConfigured ? 'configured' : 'polling-fallback',
+        realtime: realtimeConfigured ? 'configured' : 'polling-fallback',
         adminAuth: env.MASTER_PASSWORD ? 'configured' : 'not-configured',
       },
       loadBalancer,

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import PusherJs from 'pusher-js';
+import * as Ably from 'ably';
 import { Card, Alert } from '@/components/ui';
 import { useGame } from '@/contexts/GameContext';
 
@@ -151,28 +151,25 @@ export default function LobbyPage() {
 
     fetchSession();
 
-    let pusher: PusherJs | null = null;
-    let channel: ReturnType<InstanceType<typeof PusherJs>['subscribe']> | null = null;
-    if (process.env.NEXT_PUBLIC_PUSHER_KEY) {
-      try {
-        pusher = new PusherJs(process.env.NEXT_PUBLIC_PUSHER_KEY, {
-          cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER || 'mt1',
-        });
-        channel = pusher.subscribe(`session-${code}`);
+    let realtime: Ably.Realtime | null = null;
+    let channel: Ably.RealtimeChannel | null = null;
+    const onSessionEvent = () => {
+      fetchSession();
+    };
 
-        const onSessionEvent = () => {
-          fetchSession();
-        };
-
-        channel.bind('player_joined', onSessionEvent);
-        channel.bind('player_removed', onSessionEvent);
-        channel.bind('question_start', onSessionEvent);
-        channel.bind('session_paused', onSessionEvent);
-        channel.bind('session_resumed', onSessionEvent);
-        channel.bind('game_over', onSessionEvent);
-      } catch (err) {
-        console.error('Failed to initialize lobby realtime updates:', err);
-      }
+    try {
+      realtime = new Ably.Realtime({
+        authUrl: '/api/ably/auth',
+      });
+      channel = realtime.channels.get(`session-${code}`);
+      channel.subscribe('player_joined', onSessionEvent);
+      channel.subscribe('player_removed', onSessionEvent);
+      channel.subscribe('question_start', onSessionEvent);
+      channel.subscribe('session_paused', onSessionEvent);
+      channel.subscribe('session_resumed', onSessionEvent);
+      channel.subscribe('game_over', onSessionEvent);
+    } catch (err) {
+      console.error('Failed to initialize lobby realtime updates:', err);
     }
 
     scheduleNextPoll();
@@ -182,11 +179,16 @@ export default function LobbyPage() {
         clearTimeout(pollTimeout);
       }
       if (channel) {
-        channel.unbind_all();
+        channel.unsubscribe('player_joined', onSessionEvent);
+        channel.unsubscribe('player_removed', onSessionEvent);
+        channel.unsubscribe('question_start', onSessionEvent);
+        channel.unsubscribe('session_paused', onSessionEvent);
+        channel.unsubscribe('session_resumed', onSessionEvent);
+        channel.unsubscribe('game_over', onSessionEvent);
       }
-      if (pusher) {
-        pusher.unsubscribe(`session-${code}`);
-        pusher.disconnect();
+      if (realtime) {
+        realtime.channels.release(`session-${code}`);
+        realtime.close();
       }
     };
   }, [code, currentPlayer, router, setGamePhase, setWasRemoved]);

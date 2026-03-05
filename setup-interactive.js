@@ -65,21 +65,18 @@ async function main() {
     process.exit(1);
   }
 
-  // Step 2: Pusher Setup
+  // Step 2: Ably Setup
   log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'blue');
-  log('STEP 2: Pusher Real-Time Configuration', 'bright');
+  log('STEP 2: Ably Real-Time Configuration', 'bright');
   log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n', 'blue');
 
-  log('Open https://pusher.com and:', 'yellow');
+  log('Open https://ably.com and:', 'yellow');
   log('1. Sign up or log in');
   log('2. Create a new app');
-  log('3. Copy: App ID, Key, Secret, and Cluster');
-  log('4. Come back here and enter them\n');
+  log('3. Copy your API key (format: xxx.yyy:zzz)');
+  log('4. Come back here and enter it\n');
 
-  const appId = await question('Pusher App ID: ');
-  const key = await question('Pusher Key: ');
-  const secret = await question('Pusher Secret: ');
-  const cluster = await question('Pusher Cluster (e.g., mt1, us2, eu, ap1): ');
+  const ablyApiKey = await question('Ably API Key: ');
 
   // Create .env.local
   log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'blue');
@@ -87,13 +84,11 @@ async function main() {
   log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n', 'blue');
 
   const envContent = `# Database
+POSTGRES_PRISMA_URL="${databaseUrl}"
 DATABASE_URL="${databaseUrl}"
 
-# Pusher (Real-time)
-PUSHER_APP_ID="${appId}"
-NEXT_PUBLIC_PUSHER_KEY="${key}"
-PUSHER_SECRET="${secret}"
-NEXT_PUBLIC_PUSHER_CLUSTER="${cluster}"
+# Ably (Real-time)
+ABLY_API_KEY="${ablyApiKey}"
 
 # Optional: API URL for production
 NEXT_PUBLIC_API_URL="http://localhost:3000"
@@ -139,11 +134,9 @@ NEXT_PUBLIC_API_URL="http://localhost:3000"
   log('1. Go to https://vercel.com/new');
   log('2. Import your GitHub repo (A-Alphabet/quizzspace)');
   log('3. Add these environment variables:');
+  log('   - POSTGRES_PRISMA_URL: ' + databaseUrl.substring(0, 30) + '...', 'dim');
   log('   - DATABASE_URL: ' + databaseUrl.substring(0, 30) + '...', 'dim');
-  log('   - PUSHER_APP_ID: ' + appId, 'dim');
-  log('   - PUSHER_SECRET: ' + secret, 'dim');
-  log('   - NEXT_PUBLIC_PUSHER_KEY: ' + key, 'dim');
-  log('   - NEXT_PUBLIC_PUSHER_CLUSTER: ' + cluster, 'dim');
+  log('   - ABLY_API_KEY: ' + ablyApiKey, 'dim');
   log('4. Click Deploy\n', 'green');
 
   // Summary
@@ -153,7 +146,7 @@ NEXT_PUBLIC_API_URL="http://localhost:3000"
 
   log('Your .env.local has been created with:', 'green');
   log('✓ Database URL');
-  log('✓ Pusher credentials');
+  log('✓ Ably credentials');
   log('✓ API configuration\n');
 
   log('Next steps:', 'bright');
