@@ -338,7 +338,8 @@ export default function HostDashboard() {
       }
 
       setSessionData(data);
-      setSession(data);
+      // Lock/unlock responses are host-local state updates; avoid overwriting
+      // global session context with a partial payload shape.
     } catch (err) {
       setError(err instanceof Error ? err.message : `Failed to ${action} lobby`);
       console.error(err);
