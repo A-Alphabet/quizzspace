@@ -108,7 +108,11 @@ export default function GamePage() {
     if (!selectedChoiceId || !currentPlayer || !session) return;
     if (removed || wasRemoved) return;
 
-    const currentQuestion = session.quiz.questions[session.currentQuestionIndex];
+    const currentQuestion = session.quiz?.questions?.[session.currentQuestionIndex];
+    if (!currentQuestion) {
+      setError('Question data is not ready yet. Please try again.');
+      return;
+    }
     const timeTaken = Date.now() - timeStarted;
 
     setIsSubmitting(true);
@@ -414,7 +418,7 @@ export default function GamePage() {
       return;
     }
 
-    const currentQuestion = session.quiz.questions[session.currentQuestionIndex];
+    const currentQuestion = session.quiz?.questions?.[session.currentQuestionIndex];
     if (!currentQuestion || hasSubmittedAnswer) return;
 
     if (timeStarted === 0) {
@@ -466,11 +470,18 @@ export default function GamePage() {
     );
   }
 
-  const currentQuestion = session.quiz.questions[session.currentQuestionIndex];
+  const sessionQuestions = Array.isArray(session.quiz?.questions) ? session.quiz.questions : [];
+  const sessionPlayers = Array.isArray(session.players) ? session.players : [];
+  const totalQuestions = sessionQuestions.length;
+  const safeQuestionIndex =
+    totalQuestions > 0
+      ? Math.min(Math.max(session.currentQuestionIndex, 0), totalQuestions - 1)
+      : 0;
+  const currentQuestion = sessionQuestions[safeQuestionIndex];
   const currentPlayerScore = currentPlayer
-    ? session.players.find((player) => player.id === currentPlayer.id)?.score ?? 0
+    ? sessionPlayers.find((player) => player.id === currentPlayer.id)?.score ?? 0
     : 0;
-  const sortedPlayers = [...session.players].sort((a, b) => {
+  const sortedPlayers = [...sessionPlayers].sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score;
 
     const byName = a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
@@ -578,7 +589,7 @@ export default function GamePage() {
                 {session.quiz.title}
               </h1>
               <p className="text-lg text-slate-600 dark:text-slate-400">
-                Question {session.currentQuestionIndex + 1} of {session.quiz.questions.length} • 📊 Leaderboard
+                Question {safeQuestionIndex + 1} of {totalQuestions} • 📊 Leaderboard
               </p>
             </div>
 
@@ -634,7 +645,7 @@ export default function GamePage() {
             </Card>
 
             <div className="flex gap-3 animate-slide-up animate-delay-100">
-              {session.currentQuestionIndex < session.quiz.questions.length - 1 ? (
+              {safeQuestionIndex < totalQuestions - 1 ? (
                 <Button
                   variant="primary"
                   size="lg"
@@ -686,7 +697,7 @@ export default function GamePage() {
                 {session.quiz.title}
               </h1>
               <p className="text-sm text-slate-600 dark:text-slate-400">
-                Question {session.currentQuestionIndex + 1} of {session.quiz.questions.length} • 🎮 Host Control
+                Question {safeQuestionIndex + 1} of {totalQuestions} • 🎮 Host Control
               </p>
             </div>
             <button
@@ -763,7 +774,7 @@ export default function GamePage() {
                       )}
                     </div>
                     <div className="flex flex-col sm:flex-row gap-3">
-                      {session.currentQuestionIndex < session.quiz.questions.length - 1 ? (
+                      {safeQuestionIndex < totalQuestions - 1 ? (
                         <Button
                           variant="primary"
                           size="lg"
@@ -877,7 +888,7 @@ export default function GamePage() {
               {session.quiz.title}
             </h1>
             <p className="text-sm text-slate-600 dark:text-slate-400">
-              Question {session.currentQuestionIndex + 1} of {session.quiz.questions.length}
+              Question {safeQuestionIndex + 1} of {totalQuestions}
             </p>
           </div>
 
