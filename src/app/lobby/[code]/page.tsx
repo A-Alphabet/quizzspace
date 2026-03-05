@@ -103,7 +103,12 @@ export default function LobbyPage() {
           sessionEtagRef.current = nextEtag;
         }
 
-        const data: SessionData = await response.json();
+        let data: SessionData;
+        try {
+          data = (await response.json()) as SessionData;
+        } catch {
+          throw new Error('Failed to parse session response');
+        }
 
         setIsReconnecting((prev) => {
           if (prev) {

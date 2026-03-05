@@ -27,6 +27,11 @@ export const JoinSessionSchema = z.object({
   playerName: z.string().min(1).max(50),
 });
 
+export const SessionControlSchema = z.object({
+  action: z.enum(['start', 'next', 'pause', 'resume', 'lock', 'unlock']),
+  sessionId: z.string().cuid(),
+});
+
 // Answer Validation
 export const SubmitAnswerSchema = z.object({
   sessionId: z.string().cuid(),
@@ -40,3 +45,4 @@ export type CreateQuizInput = z.infer<typeof CreateQuizSchema>;
 export type CreateSessionInput = z.infer<typeof CreateSessionSchema>;
 export type JoinSessionInput = z.infer<typeof JoinSessionSchema>;
 export type SubmitAnswerInput = z.infer<typeof SubmitAnswerSchema>;
+export type SessionControlInput = z.infer<typeof SessionControlSchema>;

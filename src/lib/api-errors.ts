@@ -13,6 +13,8 @@ export class ApiError extends Error {
 }
 
 export function handleErrorResponse(error: unknown) {
+  const requestId = crypto.randomUUID();
+  const timestamp = new Date().toISOString();
   console.error('API Error:', error);
 
   if (error instanceof ApiError) {
@@ -20,6 +22,8 @@ export function handleErrorResponse(error: unknown) {
       {
         error: error.message,
         code: error.code,
+        requestId,
+        timestamp,
       },
       { status: error.statusCode }
     );
@@ -30,6 +34,8 @@ export function handleErrorResponse(error: unknown) {
       {
         error: 'Validation failed',
         details: error.issues,
+        requestId,
+        timestamp,
       },
       { status: 400 }
     );
@@ -39,6 +45,8 @@ export function handleErrorResponse(error: unknown) {
     return NextResponse.json(
       {
         error: error.message,
+        requestId,
+        timestamp,
       },
       { status: 500 }
     );
@@ -47,6 +55,8 @@ export function handleErrorResponse(error: unknown) {
   return NextResponse.json(
     {
       error: 'An unexpected error occurred',
+      requestId,
+      timestamp,
     },
     { status: 500 }
   );

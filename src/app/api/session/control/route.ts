@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { broadcastToSession, eventNames } from '@/lib/realtime';
 import { checkRateLimit, getRequestIdentifier } from '@/lib/rate-limit';
 import { acquireLoadSlot } from '@/lib/load-balancer';
+import { SessionControlSchema } from '@/lib/validations';
 
 export async function POST(req: NextRequest) {
   const slot = acquireLoadSlot('session:control', 60);
@@ -24,11 +25,7 @@ export async function POST(req: NextRequest) {
     } catch {
       return successResponse({ error: 'Invalid JSON body' }, 400);
     }
-    const { action, sessionId } = body as { action?: string; sessionId?: string };
-
-    if (!sessionId) {
-      return successResponse({ error: 'sessionId is required' }, 400);
-    }
+    const { action, sessionId } = SessionControlSchema.parse(body);
 
     const session = await prisma.session.findUnique({
       where: { id: sessionId },
@@ -230,10 +227,7 @@ export async function POST(req: NextRequest) {
       return successResponse(updatedSession);
     }
 
-    return successResponse(
-      { error: 'Invalid action. Use "start", "next", "pause", "resume", "lock", or "unlock"' },
-      400
-    );
+    return successResponse({ error: 'Invalid action' }, 400);
   } catch (error) {
     return handleErrorResponse(error);
   } finally {

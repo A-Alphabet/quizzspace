@@ -4,11 +4,12 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, Alert, Button, Input } from '@/components/ui';
 import { useGame } from '@/contexts/GameContext';
+import { fetchJson } from '@/lib/http';
 
 export function JoinPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { setSession, setCurrentPlayer } = useGame();
+  const { setCurrentPlayer } = useGame();
 
   const code = (searchParams.get('code') || '').toUpperCase();
   const playerNameFromQuery = searchParams.get('name') || '';
@@ -31,11 +32,13 @@ export function JoinPageContent() {
       setError('');
 
       try {
-        const sessionRes = await fetch(`/api/session/${code}?mode=lite`);
-        if (!sessionRes.ok) {
-          throw new Error('Invalid join code or session not found');
+        const sessionRes = await fetchJson<{ status: string } & Record<string, unknown>>(
+          `/api/session/${code}?mode=lite`
+        );
+        if (!sessionRes.ok || !sessionRes.data) {
+          throw new Error(sessionRes.error || 'Invalid join code or session not found');
         }
-        const sessionData = await sessionRes.json();
+        const sessionData = sessionRes.data;
 
         if (sessionData.status === 'locked') {
           throw new Error('Lobby is currently locked by the host');
@@ -45,9 +48,9 @@ export function JoinPageContent() {
           throw new Error('This session is no longer accepting new players');
         }
 
-        setSession(sessionData);
-
-        const joinRes = await fetch('/api/player', {
+        const joinRes = await fetchJson<{
+          player: { id: string; name: string; score: number };
+        } & Record<string, unknown>>('/api/player', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -56,12 +59,11 @@ export function JoinPageContent() {
           }),
         });
 
-        if (!joinRes.ok) {
-          const errorData = await joinRes.json().catch(() => ({}));
-          throw new Error(errorData.error || 'Failed to join session');
+        if (!joinRes.ok || !joinRes.data) {
+          throw new Error(joinRes.error || 'Failed to join session');
         }
 
-        const { player } = await joinRes.json();
+        const { player } = joinRes.data;
         setCurrentPlayer(player);
         sessionStorage.setItem('currentPlayerId', player.id);
         localStorage.setItem('last_join_code', code);
@@ -72,7 +74,7 @@ export function JoinPageContent() {
         setIsLoading(false);
       }
     },
-    [code, router, setCurrentPlayer, setSession]
+    [code, router, setCurrentPlayer]
   );
 
   useEffect(() => {
