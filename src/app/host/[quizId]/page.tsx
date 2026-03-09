@@ -39,6 +39,16 @@ interface Player {
   score: number;
 }
 
+interface RealtimeDiagnosticsResponse {
+  status: 'ok' | 'degraded';
+  checks: {
+    configured: boolean;
+    authSigning: 'ok' | 'failed' | 'not-configured';
+  };
+  checkedAt: string;
+  cacheTtlSeconds: number;
+}
+
 export default function HostDashboard() {
   const params = useParams();
   const router = useRouter();
@@ -54,11 +64,39 @@ export default function HostDashboard() {
   const [activeAction, setActiveAction] = useState<string | null>(null);
   const [sessionCreated, setSessionCreated] = useState(false);
   const [shareStatus, setShareStatus] = useState('');
+  const [realtimeHealth, setRealtimeHealth] = useState<'checking' | 'healthy' | 'degraded'>('checking');
   const sessionEtagRef = useRef<string | null>(null);
+  const sessionStatusRef = useRef<SessionData['status'] | null>(null);
   const joinCode = session?.joinCode;
   const joinLink = typeof window !== 'undefined' && joinCode
     ? `${window.location.origin}/join?code=${joinCode}`
     : '';
+
+  const applyPollJitter = (delayMs: number) => {
+    const jitterRange = Math.round(delayMs * 0.2);
+    const jitter = Math.floor(Math.random() * (jitterRange * 2 + 1)) - jitterRange;
+    return Math.max(1500, delayMs + jitter);
+  };
+
+  const getAdaptiveMinPollDelay = () => {
+    const status = sessionStatusRef.current;
+    const isHidden = typeof document !== 'undefined' ? document.hidden : false;
+
+    if (isHidden) {
+      return 25_000;
+    }
+
+    if (status === 'active' || status === 'paused') {
+      return 8_000;
+    }
+
+    return 12_000;
+  };
+
+  const getAdaptiveMaxPollDelay = () => {
+    const isHidden = typeof document !== 'undefined' ? document.hidden : false;
+    return isHidden ? 90_000 : 45_000;
+  };
 
   const handleCopyLink = async () => {
     if (!joinLink) return;
@@ -96,10 +134,8 @@ export default function HostDashboard() {
     sessionEtagRef.current = null;
     let isPolling = false;
     let stopped = false;
-    let pollDelayMs = 6000;
+    let pollDelayMs = getAdaptiveMinPollDelay();
 
-    const MIN_POLL_DELAY_MS = 6000;
-    const MAX_POLL_DELAY_MS = 30000;
     const POLL_BACKOFF_MULTIPLIER = 1.8;
 
     let pollTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -116,7 +152,7 @@ export default function HostDashboard() {
         });
 
         if (response.status === 304) {
-          pollDelayMs = MIN_POLL_DELAY_MS;
+          pollDelayMs = getAdaptiveMinPollDelay();
           return;
         }
 
@@ -129,7 +165,7 @@ export default function HostDashboard() {
           throw new Error(`Session fetch failed (${response.status})`);
         }
 
-        pollDelayMs = MIN_POLL_DELAY_MS;
+        pollDelayMs = getAdaptiveMinPollDelay();
 
         const nextEtag = response.headers.get('etag');
         if (nextEtag) {
@@ -141,7 +177,7 @@ export default function HostDashboard() {
       } catch (err) {
         console.error('Failed to poll session:', err);
         pollDelayMs = Math.min(
-          MAX_POLL_DELAY_MS,
+          getAdaptiveMaxPollDelay(),
           Math.round(pollDelayMs * POLL_BACKOFF_MULTIPLIER)
         );
       } finally {
@@ -155,7 +191,7 @@ export default function HostDashboard() {
       pollTimeout = setTimeout(async () => {
         await fetchSession();
         scheduleNextPoll();
-      }, pollDelayMs);
+      }, applyPollJitter(pollDelayMs));
     };
 
     fetchSession();
@@ -206,6 +242,46 @@ export default function HostDashboard() {
       }
     };
   }, [joinCode]);
+
+  useEffect(() => {
+    sessionStatusRef.current = session?.status ?? null;
+  }, [session?.status]);
+
+  useEffect(() => {
+    let stopped = false;
+
+    const checkRealtimeHealth = async () => {
+      try {
+        const response = await fetch('/api/realtime/diagnostics', {
+          cache: 'no-store',
+        });
+
+        if (!response.ok) {
+          if (!stopped) {
+            setRealtimeHealth('degraded');
+          }
+          return;
+        }
+
+        const data = (await response.json()) as RealtimeDiagnosticsResponse;
+        if (!stopped) {
+          setRealtimeHealth(data.status === 'ok' ? 'healthy' : 'degraded');
+        }
+      } catch {
+        if (!stopped) {
+          setRealtimeHealth('degraded');
+        }
+      }
+    };
+
+    checkRealtimeHealth();
+    const timer = setInterval(checkRealtimeHealth, 60_000);
+
+    return () => {
+      stopped = true;
+      clearInterval(timer);
+    };
+  }, []);
 
   // Fetch quiz data
   useEffect(() => {
@@ -393,6 +469,12 @@ export default function HostDashboard() {
           {error && (
             <Alert variant="error" className="mb-6 animate-slide-up">
               {error}
+            </Alert>
+          )}
+
+          {realtimeHealth === 'degraded' && (
+            <Alert variant="warning" className="mb-6 animate-slide-up">
+              Real-time is degraded right now. Players can still play via polling fallback, but updates may be slower.
             </Alert>
           )}
 

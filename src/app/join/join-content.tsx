@@ -9,7 +9,7 @@ import { fetchJson } from '@/lib/http';
 export function JoinPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { setCurrentPlayer } = useGame();
+  const { setCurrentPlayer, setWasRemoved, setGamePhase } = useGame();
 
   const code = (searchParams.get('code') || '').toUpperCase();
   const playerNameFromQuery = searchParams.get('name') || '';
@@ -32,6 +32,12 @@ export function JoinPageContent() {
       setError('');
 
       try {
+        const existingPlayerId =
+          typeof window !== 'undefined'
+            ? sessionStorage.getItem('currentPlayerId') || localStorage.getItem('last_player_id')
+            : null;
+        const canAttemptReconnect = Boolean(existingPlayerId);
+
         const sessionRes = await fetchJson<{ status: string } & Record<string, unknown>>(
           `/api/session/${code}?mode=lite`
         );
@@ -40,11 +46,13 @@ export function JoinPageContent() {
         }
         const sessionData = sessionRes.data;
 
-        if (sessionData.status === 'locked') {
+        if (sessionData.status === 'locked' && !canAttemptReconnect) {
           throw new Error('Lobby is currently locked by the host');
         }
 
-        if (sessionData.status !== 'waiting') {
+        const canJoinAsNew = sessionData.status === 'waiting' || sessionData.status === 'active' || sessionData.status === 'paused';
+
+        if (!canJoinAsNew && !canAttemptReconnect) {
           throw new Error('This session is no longer accepting new players');
         }
 
@@ -56,6 +64,7 @@ export function JoinPageContent() {
           body: JSON.stringify({
             code,
             playerName: finalName,
+            existingPlayerId: existingPlayerId || undefined,
           }),
         });
 
@@ -65,16 +74,30 @@ export function JoinPageContent() {
 
         const { player } = joinRes.data;
         setCurrentPlayer(player);
+        setWasRemoved(false);
+        setGamePhase('lobby');
         sessionStorage.setItem('currentPlayerId', player.id);
+        localStorage.setItem('last_player_id', player.id);
         localStorage.setItem('last_join_code', code);
         localStorage.setItem('last_player_name', finalName);
-        router.push(`/lobby/${code}`);
+        const joinedSessionStatus =
+          joinRes.data && typeof joinRes.data === 'object' && 'session' in joinRes.data
+            ? ((joinRes.data.session as { status?: string } | undefined)?.status ?? sessionData.status)
+            : sessionData.status;
+
+        if (joinedSessionStatus === 'active' || joinedSessionStatus === 'paused') {
+          sessionStorage.setItem('joined_late_notice', '1');
+          router.push(`/game/${code}`);
+        } else {
+          sessionStorage.removeItem('joined_late_notice');
+          router.push(`/lobby/${code}`);
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to join session. Please try again.');
         setIsLoading(false);
       }
     },
-    [code, router, setCurrentPlayer]
+    [code, router, setCurrentPlayer, setWasRemoved, setGamePhase]
   );
 
   useEffect(() => {

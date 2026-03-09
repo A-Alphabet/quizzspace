@@ -59,17 +59,42 @@ export async function POST(req: NextRequest) {
       throw ApiErrors.INVALID_CODE;
     }
 
+    const normalizedRequestedName = validatedData.playerName.trim().toLowerCase();
+    const reconnectPlayer = validatedData.existingPlayerId
+      ? session.players.find((player) => player.id === validatedData.existingPlayerId)
+      : undefined;
+
+    // If this device is reconnecting as the same known player, allow resume even after start.
+    if (
+      reconnectPlayer &&
+      reconnectPlayer.name.trim().toLowerCase() === normalizedRequestedName &&
+      session.status !== 'finished'
+    ) {
+      return successResponse(
+        {
+          player: reconnectPlayer,
+          reconnected: true,
+          session: {
+            id: session.id,
+            joinCode: session.joinCode,
+            status: session.status,
+            currentQuestionIndex: session.currentQuestionIndex,
+            quiz: session.quiz,
+          },
+        },
+        200
+      );
+    }
+
     if (session.status === 'locked') {
       return successResponse({ error: 'Lobby is locked by the host. Try again later.' }, 423);
     }
 
-    if (session.status !== 'waiting') {
+    if (session.status === 'finished') {
       throw ApiErrors.SESSION_NOT_ACTIVE;
     }
 
-    const duplicateName = session.players.find(
-      (player) => player.name.trim().toLowerCase() === validatedData.playerName.trim().toLowerCase()
-    );
+    const duplicateName = session.players.find((player) => player.name.trim().toLowerCase() === normalizedRequestedName);
 
     if (duplicateName) {
       return successResponse({ error: 'Player name is already taken in this session' }, 409);

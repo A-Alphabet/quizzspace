@@ -25,6 +25,7 @@ export const CreateSessionSchema = z.object({
 export const JoinSessionSchema = z.object({
   code: z.string().min(6).max(6),
   playerName: z.string().min(1).max(50),
+  existingPlayerId: z.string().cuid().optional(),
 });
 
 export const SessionControlSchema = z.object({

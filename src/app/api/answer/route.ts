@@ -45,6 +45,24 @@ export async function POST(req: NextRequest) {
       return successResponse({ error: 'Session is not active' }, 400);
     }
 
+    const currentQuestion = await prisma.question.findFirst({
+      where: {
+        quizId: session.quizId,
+        orderIndex: session.currentQuestionIndex,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!currentQuestion) {
+      return successResponse({ error: 'Current question not found' }, 400);
+    }
+
+    if (validatedData.questionId !== currentQuestion.id) {
+      return successResponse({ error: 'This question is no longer active for answers' }, 409);
+    }
+
     // Verify the player still exists in this session (may have been removed)
     const player = await prisma.player.findUnique({
       where: { id: validatedData.playerId },

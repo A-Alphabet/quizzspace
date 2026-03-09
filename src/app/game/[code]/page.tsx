@@ -62,6 +62,20 @@ interface AnswerFeedback {
   pointsAwarded: number;
 }
 
+interface NetworkParticipant {
+  participantType: 'host' | 'player';
+  playerId?: string;
+  latencyMs: number;
+  lastSeenAt: number;
+  status: 'ok' | 'delay' | 'offline';
+}
+
+interface NetworkSnapshot {
+  host: NetworkParticipant | null;
+  players: NetworkParticipant[];
+  delayedCount: number;
+}
+
 export default function GamePage() {
   const params = useParams();
   const router = useRouter();
@@ -83,9 +97,43 @@ export default function GamePage() {
   const [hostCorrectChoiceId, setHostCorrectChoiceId] = useState<string | null>(null);
   const [hostCorrectChoiceText, setHostCorrectChoiceText] = useState<string | null>(null);
   const [answerFeedback, setAnswerFeedback] = useState<AnswerFeedback | null>(null);
+  const [networkSnapshot, setNetworkSnapshot] = useState<NetworkSnapshot | null>(null);
+  const [localLatencyMs, setLocalLatencyMs] = useState<number>(0);
+  const [joinedLateNotice, setJoinedLateNotice] = useState(false);
   const currentQuestionIndex = session?.currentQuestionIndex;
   const sessionEtagRef = useRef<string | null>(null);
   const hasNavigatedRef = useRef(false);
+  const missingPlayerCountRef = useRef(0);
+  const sessionStatusRef = useRef<SessionData['status'] | null>(null);
+
+  const MISSING_PLAYER_CONFIRMATION_POLLS = 3;
+  const DELAY_THRESHOLD_MS = 1200;
+
+  const applyPollJitter = (delayMs: number) => {
+    const jitterRange = Math.round(delayMs * 0.2);
+    const jitter = Math.floor(Math.random() * (jitterRange * 2 + 1)) - jitterRange;
+    return Math.max(1000, delayMs + jitter);
+  };
+
+  const getAdaptiveMinPollDelay = () => {
+    const status = sessionStatusRef.current;
+    const isHidden = typeof document !== 'undefined' ? document.hidden : false;
+
+    if (isHidden) {
+      return 20_000;
+    }
+
+    if (status === 'active' || status === 'paused') {
+      return 7_000;
+    }
+
+    return 12_000;
+  };
+
+  const getAdaptiveMaxPollDelay = () => {
+    const isHidden = typeof document !== 'undefined' ? document.hidden : false;
+    return isHidden ? 90_000 : 45_000;
+  };
 
   const pushOnce = useCallback(
     (path: string) => {
@@ -196,10 +244,7 @@ export default function GamePage() {
     sessionEtagRef.current = null;
     let isPolling = false;
     let stopped = false;
-    let pollDelayMs = 6000;
-
-    const MIN_POLL_DELAY_MS = 6000;
-    const MAX_POLL_DELAY_MS = 30000;
+    let pollDelayMs = getAdaptiveMinPollDelay();
     const POLL_BACKOFF_MULTIPLIER = 1.8;
 
     let pollTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -211,14 +256,17 @@ export default function GamePage() {
       isPolling = true;
 
       try {
+        const requestStartedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
         const response = await fetch(`/api/session/${code}?mode=lite`, {
           headers: sessionEtagRef.current
             ? { 'If-None-Match': sessionEtagRef.current }
             : undefined,
         });
+        const requestEndedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
+        setLocalLatencyMs(Math.max(0, Math.round(requestEndedAt - requestStartedAt)));
 
         if (response.status === 304) {
-          pollDelayMs = MIN_POLL_DELAY_MS;
+          pollDelayMs = getAdaptiveMinPollDelay();
           setIsReconnecting((prev) => {
             if (prev) {
               setShowReconnected(true);
@@ -237,7 +285,7 @@ export default function GamePage() {
           throw new Error(`Session fetch failed (${response.status})`);
         }
 
-        pollDelayMs = MIN_POLL_DELAY_MS;
+        pollDelayMs = getAdaptiveMinPollDelay();
 
         const nextEtag = response.headers.get('etag');
         if (nextEtag) {
@@ -245,6 +293,7 @@ export default function GamePage() {
         }
 
         const data: LiteSessionData = await response.json();
+        sessionStatusRef.current = data.status;
 
         setIsReconnecting((prev) => {
           if (prev) {
@@ -263,6 +312,12 @@ export default function GamePage() {
             (p) => p.id === currentPlayer.id
           );
           if (!playerStillInSession) {
+            missingPlayerCountRef.current += 1;
+          } else {
+            missingPlayerCountRef.current = 0;
+          }
+
+          if (missingPlayerCountRef.current >= MISSING_PLAYER_CONFIRMATION_POLLS) {
             setRemoved(true);
             setWasRemoved(true);
             return;
@@ -278,7 +333,7 @@ export default function GamePage() {
         setError('Failed to load session');
         setIsReconnecting(true);
         pollDelayMs = Math.min(
-          MAX_POLL_DELAY_MS,
+          getAdaptiveMaxPollDelay(),
           Math.round(pollDelayMs * POLL_BACKOFF_MULTIPLIER)
         );
       } finally {
@@ -292,7 +347,7 @@ export default function GamePage() {
       pollTimeout = setTimeout(async () => {
         await fetchSession();
         scheduleNextPoll();
-      }, pollDelayMs);
+      }, applyPollJitter(pollDelayMs));
     };
 
     const fetchFullSession = async () => {
@@ -319,13 +374,23 @@ export default function GamePage() {
       fetchSession();
     };
 
+    const onPlayerRemoved = (message: { data?: unknown }) => {
+      const data = (message.data ?? {}) as { playerId?: string };
+      if (currentPlayer && data.playerId && data.playerId === currentPlayer.id) {
+        setRemoved(true);
+        setWasRemoved(true);
+        return;
+      }
+      fetchSession();
+    };
+
     try {
       realtime = new Ably.Realtime({
         authUrl: '/api/ably/auth',
       });
       channel = realtime.channels.get(`session-${code}`);
       channel.subscribe('player_joined', onSessionEvent);
-      channel.subscribe('player_removed', onSessionEvent);
+      channel.subscribe('player_removed', onPlayerRemoved);
       channel.subscribe('question_start', onSessionEvent);
       channel.subscribe('leaderboard_update', onSessionEvent);
       channel.subscribe('session_paused', onSessionEvent);
@@ -343,7 +408,7 @@ export default function GamePage() {
       }
       if (channel) {
         channel.unsubscribe('player_joined', onSessionEvent);
-        channel.unsubscribe('player_removed', onSessionEvent);
+        channel.unsubscribe('player_removed', onPlayerRemoved);
         channel.unsubscribe('question_start', onSessionEvent);
         channel.unsubscribe('leaderboard_update', onSessionEvent);
         channel.unsubscribe('session_paused', onSessionEvent);
@@ -356,6 +421,62 @@ export default function GamePage() {
       }
     };
   }, [code, currentPlayer, isHost, pushOnce, setGamePhase, wasRemoved, setWasRemoved, mergeLiteSession]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const joinedLate = sessionStorage.getItem('joined_late_notice') === '1';
+    if (joinedLate) {
+      setJoinedLateNotice(true);
+      sessionStorage.removeItem('joined_late_notice');
+    }
+  }, []);
+
+  useEffect(() => {
+    const isHostParticipant = isHost && !currentPlayer;
+    const isPlayerParticipant = Boolean(currentPlayer);
+    if (!isHostParticipant && !isPlayerParticipant) {
+      return;
+    }
+
+    let stopped = false;
+
+    const reportNetwork = async () => {
+      try {
+        const participantType = isHostParticipant ? 'host' : 'player';
+        const response = await fetch(`/api/session/${code}/network`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            participantType,
+            playerId: currentPlayer?.id,
+            latencyMs: localLatencyMs,
+          }),
+        });
+
+        if (!response.ok) {
+          return;
+        }
+
+        const data = (await response.json()) as NetworkSnapshot;
+        if (!stopped) {
+          setNetworkSnapshot(data);
+        }
+      } catch {
+        // Ignore transient network report failures.
+      }
+    };
+
+    reportNetwork();
+    const timer = setInterval(() => {
+      void reportNetwork();
+    }, typeof document !== 'undefined' && document.hidden ? 45_000 : 25_000);
+
+    return () => {
+      stopped = true;
+      clearInterval(timer);
+    };
+  }, [code, currentPlayer, isHost, localLatencyMs]);
 
   // Handle removed state — show message then redirect
   useEffect(() => {
@@ -518,6 +639,38 @@ export default function GamePage() {
     };
   });
 
+  const hostDelayStatus = networkSnapshot?.host?.status ?? 'ok';
+  const delayedPlayers = (networkSnapshot?.players ?? []).filter(
+    (participant) => participant.status === 'delay' || participant.status === 'offline'
+  );
+  const delayedPlayerNames = delayedPlayers
+    .map((participant) => sessionPlayers.find((player) => player.id === participant.playerId)?.name)
+    .filter((name): name is string => Boolean(name));
+
+  const playerNetworkRows = sessionPlayers
+    .map((player) => {
+      const participant = networkSnapshot?.players.find((entry) => entry.playerId === player.id);
+      return {
+        id: player.id,
+        name: player.name,
+        latencyMs: participant?.latencyMs ?? null,
+        status: participant?.status ?? 'offline',
+      };
+    })
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+
+  const statusBadgeClasses = {
+    ok: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
+    delay: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
+    offline: 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300',
+  } as const;
+
+  const statusLabel = {
+    ok: 'OK',
+    delay: 'Delay',
+    offline: 'Offline',
+  } as const;
+
   // Host control view
   if (isHost && !currentPlayer) {
     const handleNextQuestion = async () => {
@@ -658,6 +811,40 @@ export default function GamePage() {
               </div>
             </Card>
 
+            <Card className="shadow-xl mb-6 animate-scale-in">
+              <h2 className="text-xl font-bold mb-4 text-slate-900 dark:text-white text-center">
+                🌐 Network Status
+              </h2>
+              <div className="space-y-2 mb-4">
+                <div className="flex items-center justify-between p-3 rounded bg-slate-50 dark:bg-slate-700">
+                  <span className="font-medium text-slate-900 dark:text-white">Host</span>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-xs px-2 py-1 rounded font-semibold ${statusBadgeClasses[hostDelayStatus]}`}>
+                      {statusLabel[hostDelayStatus]}
+                    </span>
+                    <span className="text-xs text-slate-600 dark:text-slate-300">
+                      {networkSnapshot?.host?.latencyMs ?? '-'} ms
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-2 max-h-52 overflow-y-auto">
+                {playerNetworkRows.map((row) => (
+                  <div key={row.id} className="flex items-center justify-between p-2 rounded bg-slate-50 dark:bg-slate-700/60">
+                    <span className="text-sm text-slate-900 dark:text-white">{row.name}</span>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs px-2 py-1 rounded font-semibold ${statusBadgeClasses[row.status]}`}>
+                        {statusLabel[row.status]}
+                      </span>
+                      <span className="text-xs text-slate-600 dark:text-slate-300 min-w-14 text-right">
+                        {row.latencyMs ?? '-'} ms
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+
             <div className="flex gap-3 animate-slide-up animate-delay-100">
               {safeQuestionIndex < totalQuestions - 1 ? (
                 <Button
@@ -737,6 +924,27 @@ export default function GamePage() {
           {showReconnected && (
             <Alert variant="success" className="mb-6 animate-slide-up">
               ✅ Reconnected. Live updates restored.
+            </Alert>
+          )}
+
+          {joinedLateNotice && (
+            <Alert variant="info" className="mb-6 animate-slide-up">
+              ⏩ You joined after the game started. Earlier questions were skipped for your score, and you are now on the current live question.
+            </Alert>
+          )}
+
+          {(hostDelayStatus !== 'ok' || delayedPlayers.length > 0 || localLatencyMs >= DELAY_THRESHOLD_MS) && (
+            <Alert variant="warning" className="mb-6 animate-slide-up">
+              <p className="font-semibold">Network Delay Detected</p>
+              {hostDelayStatus !== 'ok' && (
+                <p className="text-sm mt-1">Host connection is currently {hostDelayStatus === 'offline' ? 'offline' : 'delayed'}.</p>
+              )}
+              {delayedPlayerNames.length > 0 && (
+                <p className="text-sm mt-1">Delayed players: {delayedPlayerNames.join(', ')}</p>
+              )}
+              {localLatencyMs >= DELAY_THRESHOLD_MS && (
+                <p className="text-sm mt-1">Your current latency: {localLatencyMs}ms</p>
+              )}
             </Alert>
           )}
 
@@ -864,6 +1072,32 @@ export default function GamePage() {
                       </div>
                     ))}
                 </div>
+
+                <div className="mt-5 border-t border-slate-200 dark:border-slate-600 pt-4">
+                  <h4 className="text-sm font-bold mb-3 text-slate-900 dark:text-white text-center">🌐 Network</h4>
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    <div className="flex items-center justify-between p-2 rounded bg-slate-50 dark:bg-slate-700">
+                      <span className="text-xs font-medium text-slate-900 dark:text-white">Host</span>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs px-2 py-0.5 rounded font-semibold ${statusBadgeClasses[hostDelayStatus]}`}>
+                          {statusLabel[hostDelayStatus]}
+                        </span>
+                        <span className="text-xs text-slate-600 dark:text-slate-300">{networkSnapshot?.host?.latencyMs ?? '-'} ms</span>
+                      </div>
+                    </div>
+                    {playerNetworkRows.map((row) => (
+                      <div key={`net-${row.id}`} className="flex items-center justify-between p-2 rounded bg-slate-50 dark:bg-slate-700/60">
+                        <span className="text-xs text-slate-900 dark:text-white truncate pr-2">{row.name}</span>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs px-2 py-0.5 rounded font-semibold ${statusBadgeClasses[row.status]}`}>
+                            {statusLabel[row.status]}
+                          </span>
+                          <span className="text-xs text-slate-600 dark:text-slate-300">{row.latencyMs ?? '-'} ms</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </Card>
             </div>
           </div>
@@ -934,6 +1168,27 @@ export default function GamePage() {
         {showReconnected && (
           <Alert variant="success" className="mb-6 animate-slide-up">
             ✅ Reconnected. Live updates restored.
+          </Alert>
+        )}
+
+        {joinedLateNotice && (
+          <Alert variant="info" className="mb-6 animate-slide-up">
+            ⏩ You joined late, so previous questions were skipped and you are on the current question.
+          </Alert>
+        )}
+
+        {(hostDelayStatus !== 'ok' || delayedPlayers.length > 0 || localLatencyMs >= DELAY_THRESHOLD_MS) && (
+          <Alert variant="warning" className="mb-6 animate-slide-up">
+            <p className="font-semibold">Network Delay Detected</p>
+            {hostDelayStatus !== 'ok' && (
+              <p className="text-sm mt-1">Host connection is currently {hostDelayStatus === 'offline' ? 'offline' : 'delayed'}.</p>
+            )}
+            {delayedPlayerNames.length > 0 && (
+              <p className="text-sm mt-1">Players with delay: {delayedPlayerNames.join(', ')}</p>
+            )}
+            {localLatencyMs >= DELAY_THRESHOLD_MS && (
+              <p className="text-sm mt-1">Your current latency: {localLatencyMs}ms</p>
+            )}
           </Alert>
         )}
 

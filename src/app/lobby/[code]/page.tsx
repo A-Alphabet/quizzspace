@@ -39,6 +39,36 @@ export default function LobbyPage() {
   const [showReconnected, setShowReconnected] = useState(false);
   const sessionEtagRef = useRef<string | null>(null);
   const hasNavigatedRef = useRef(false);
+  const missingPlayerCountRef = useRef(0);
+  const sessionStatusRef = useRef<SessionData['status'] | null>(null);
+
+  const MISSING_PLAYER_CONFIRMATION_POLLS = 3;
+
+  const applyPollJitter = (delayMs: number) => {
+    const jitterRange = Math.round(delayMs * 0.2);
+    const jitter = Math.floor(Math.random() * (jitterRange * 2 + 1)) - jitterRange;
+    return Math.max(1000, delayMs + jitter);
+  };
+
+  const getAdaptiveMinPollDelay = () => {
+    const status = sessionStatusRef.current;
+    const isHidden = typeof document !== 'undefined' ? document.hidden : false;
+
+    if (isHidden) {
+      return 25_000;
+    }
+
+    if (status === 'active' || status === 'paused') {
+      return 8_000;
+    }
+
+    return 12_000;
+  };
+
+  const getAdaptiveMaxPollDelay = () => {
+    const isHidden = typeof document !== 'undefined' ? document.hidden : false;
+    return isHidden ? 90_000 : 45_000;
+  };
 
   const navigateOnce = (path: string) => {
     if (hasNavigatedRef.current) return;
@@ -55,10 +85,7 @@ export default function LobbyPage() {
     sessionEtagRef.current = null;
     let isPolling = false;
     let stopped = false;
-    let pollDelayMs = 6000;
-
-    const MIN_POLL_DELAY_MS = 6000;
-    const MAX_POLL_DELAY_MS = 30000;
+    let pollDelayMs = getAdaptiveMinPollDelay();
     const POLL_BACKOFF_MULTIPLIER = 1.8;
 
     let pollTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -77,7 +104,7 @@ export default function LobbyPage() {
         });
 
         if (response.status === 304) {
-          pollDelayMs = MIN_POLL_DELAY_MS;
+          pollDelayMs = getAdaptiveMinPollDelay();
           setIsReconnecting((prev) => {
             if (prev) {
               setShowReconnected(true);
@@ -96,7 +123,7 @@ export default function LobbyPage() {
           throw new Error(`Session fetch failed (${response.status})`);
         }
 
-        pollDelayMs = MIN_POLL_DELAY_MS;
+        pollDelayMs = getAdaptiveMinPollDelay();
 
         const nextEtag = response.headers.get('etag');
         if (nextEtag) {
@@ -118,12 +145,19 @@ export default function LobbyPage() {
         });
 
         setSession(data);
+        sessionStatusRef.current = data.status;
 
         // Check if current player was removed from the session
         const playerStillInSession = data.players.some(
           (p) => p.id === currentPlayer.id
         );
         if (!playerStillInSession) {
+          missingPlayerCountRef.current += 1;
+        } else {
+          missingPlayerCountRef.current = 0;
+        }
+
+        if (missingPlayerCountRef.current >= MISSING_PLAYER_CONFIRMATION_POLLS) {
           setRemoved(true);
           setWasRemoved(true);
           return; // Stop further processing
@@ -143,7 +177,7 @@ export default function LobbyPage() {
         console.error('Failed to fetch session:', err);
         setIsReconnecting(true);
         pollDelayMs = Math.min(
-          MAX_POLL_DELAY_MS,
+          getAdaptiveMaxPollDelay(),
           Math.round(pollDelayMs * POLL_BACKOFF_MULTIPLIER)
         );
       } finally {
@@ -158,7 +192,7 @@ export default function LobbyPage() {
       pollTimeout = setTimeout(async () => {
         await fetchSession();
         scheduleNextPoll();
-      }, pollDelayMs);
+      }, applyPollJitter(pollDelayMs));
     };
 
     fetchSession();
@@ -169,13 +203,23 @@ export default function LobbyPage() {
       fetchSession();
     };
 
+    const onPlayerRemoved = (message: { data?: unknown }) => {
+      const data = (message.data ?? {}) as { playerId?: string };
+      if (data.playerId && data.playerId === currentPlayer.id) {
+        setRemoved(true);
+        setWasRemoved(true);
+        return;
+      }
+      fetchSession();
+    };
+
     try {
       realtime = new Ably.Realtime({
         authUrl: '/api/ably/auth',
       });
       channel = realtime.channels.get(`session-${code}`);
       channel.subscribe('player_joined', onSessionEvent);
-      channel.subscribe('player_removed', onSessionEvent);
+      channel.subscribe('player_removed', onPlayerRemoved);
       channel.subscribe('question_start', onSessionEvent);
       channel.subscribe('session_paused', onSessionEvent);
       channel.subscribe('session_resumed', onSessionEvent);
@@ -192,7 +236,7 @@ export default function LobbyPage() {
       }
       if (channel) {
         channel.unsubscribe('player_joined', onSessionEvent);
-        channel.unsubscribe('player_removed', onSessionEvent);
+        channel.unsubscribe('player_removed', onPlayerRemoved);
         channel.unsubscribe('question_start', onSessionEvent);
         channel.unsubscribe('session_paused', onSessionEvent);
         channel.unsubscribe('session_resumed', onSessionEvent);

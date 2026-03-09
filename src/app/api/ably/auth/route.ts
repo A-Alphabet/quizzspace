@@ -9,10 +9,15 @@ export async function GET() {
     return successResponse({ error: 'Real-time is not configured' }, 503);
   }
 
-  const ably = new Ably.Rest(env.ABLY_API_KEY);
-  const tokenRequest = await ably.auth.createTokenRequest({
-    clientId: `client-${crypto.randomUUID()}`,
-  });
+  try {
+    const ably = new Ably.Rest(env.ABLY_API_KEY);
+    const tokenRequest = await ably.auth.createTokenRequest({
+      clientId: `client-${crypto.randomUUID()}`,
+    });
 
-  return successResponse(tokenRequest);
+    return successResponse(tokenRequest);
+  } catch (error) {
+    console.error('Failed to create Ably token request:', error);
+    return successResponse({ error: 'Real-time is temporarily unavailable' }, 503);
+  }
 }
